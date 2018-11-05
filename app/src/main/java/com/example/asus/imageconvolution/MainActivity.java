@@ -207,6 +207,10 @@ public class MainActivity extends AppCompatActivity {
                     convoluteImage(bitmap,secondBitmap,leftSobel);
                 } else if (items[which].equals("Top Sobel")) {
                     convoluteImage(bitmap, secondBitmap, topSobel);
+                } else if (items[which].equals("Robert")){
+                    convoluteImage(bitmap,secondBitmap,robert);
+                } else if (items[which].equals("Prewitt")) {
+                    convoluteImage(bitmap, secondBitmap,prewitt);
                 } else if (items[which].equals("Custom")) {
                     updateCustomMatrix();
                     convoluteImage(bitmap, secondBitmap, custom_matrix);
