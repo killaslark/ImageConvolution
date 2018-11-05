@@ -15,6 +15,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
 
@@ -27,6 +28,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     private ImageView imageViewBefore,imageViewAfter;
+    private EditText[][] matrixView = new EditText[3][3];
     private Integer REQUEST_CAMERA = 1, SELECT_FILE = 0;
     private Bitmap bitmap,secondBitmap;
     private double[][] blur = {{0.0625, 0.125, 0.0625},
@@ -76,6 +78,17 @@ public class MainActivity extends AppCompatActivity {
             {-1, 5, -1},
             {0, -1, 0}};
 
+    private double[][] robert =  {{0, 1},
+            {-1, 0}};
+
+    private double[][] prewitt =  {{-1, -1, -1},
+            {0, 0, 0},
+            {1, 1, 1}};
+
+    private double[][] custom_matrix =  {{0, 0, 0},
+            {0, 0, 0},
+            {0, 0, 0}};
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,6 +100,22 @@ public class MainActivity extends AppCompatActivity {
         Button feature = (Button) findViewById(R.id.button_features);
         imageViewBefore = (ImageView) findViewById(R.id.image_view_before);
         imageViewAfter = (ImageView) findViewById(R.id.image_view_after);
+        matrixView[0][0] = (EditText) findViewById(R.id.m00);
+        matrixView[0][1] = (EditText) findViewById(R.id.m10);
+        matrixView[0][2] = (EditText) findViewById(R.id.m20);
+        matrixView[1][0] = (EditText) findViewById(R.id.m01);
+        matrixView[1][1] = (EditText) findViewById(R.id.m11);
+        matrixView[1][2] = (EditText) findViewById(R.id.m21);
+        matrixView[2][0] = (EditText) findViewById(R.id.m02);
+        matrixView[2][1] = (EditText) findViewById(R.id.m12);
+        matrixView[2][2] = (EditText) findViewById(R.id.m22);
+//        for(int i = 0;i < matrixView.length;i++){
+//            for (int j = 0;j < matrixView[0].length;j++){
+//                matrixView[i][j] = (EditText) findViewById(getResources().getIdentifier("m"+Integer.toString(j)+Integer.toString(i), "layout", getPackageName()));
+//                Log.d("OKAAY", Integer.toString(getResources().getIdentifier("m00", "layout", getBaseContext().getPackageName())));
+//                //Log.d("OKAAY", Integer.toString(R.id.m00));
+//            }
+//        }
 
         menu.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -145,6 +174,9 @@ public class MainActivity extends AppCompatActivity {
                 "Top Sobel",
                 "Left Sobel",
                 "Right Sobel",
+                "Robert",
+                "Prewitt",
+                "Custom",
                 "Greyscale",
                 "Cancel"};
 
@@ -175,6 +207,9 @@ public class MainActivity extends AppCompatActivity {
                     convoluteImage(bitmap,secondBitmap,leftSobel);
                 } else if (items[which].equals("Top Sobel")) {
                     convoluteImage(bitmap, secondBitmap, topSobel);
+                } else if (items[which].equals("Custom")) {
+                    updateCustomMatrix();
+                    convoluteImage(bitmap, secondBitmap, custom_matrix);
                 } else if (items[which].equals("Greyscale")){
                     convertGreyscale();
                 } else if (items[which].equals("Cancel")) {
@@ -213,6 +248,17 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
+    private void updateCustomMatrix() {
+        for(int i = 0;i < matrixView.length;i++) {
+            for (int j = 0; j < matrixView[0].length; j++) {
+                if(matrixView[i][j].getText().toString().equals("")){
+                    custom_matrix[i][j] = 0;
+                } else {
+                    custom_matrix[i][j] = Integer.parseInt(matrixView[i][j].getText().toString());
+                }
+            }
+        }
+    }
     private void convertGreyscale() {
         Bitmap newBitmap = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
         for (int j = 0; j < bitmap.getWidth(); j++) {
