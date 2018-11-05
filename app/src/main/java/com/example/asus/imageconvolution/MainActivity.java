@@ -33,6 +33,12 @@ public class MainActivity extends AppCompatActivity {
                               {0.125, 0.25, 0.125},
                               {0.0625, 0.125, 0.0625}};
 
+    private double[][] gaussian_blur = {{1/256, 4/256, 6/256, 4/256, 1/256},
+                                        {4/256, 16/256, 24/256, 16/256, 4/256},
+                                        {6/256, 24/256, 36/256, 24/256, 6/256},
+                                        {4/256, 16/256, 24/256, 16/256, 4/256},
+                                        {1/256, 4/256, 6/256, 4/256, 1/256}};
+
     private double[][] identity = {{0, 0, 0},
                                 {0, 1, 0},
                                 {0, 0, 0}};
@@ -62,9 +68,9 @@ public class MainActivity extends AppCompatActivity {
             {0, 0, 0},
             {-1, -2, -1}};
 
-    private double[][] bottomSobel =  {{1, 2, 1},
+    private double[][] bottomSobel =  {{-1, -2, -1},
             {0, 0, 0},
-            {-1, -2, -1}};
+            {1, 2, 1}};
 
     private double[][] sharpen =  {{0, -1, 0},
             {-1, 5, -1},
@@ -130,6 +136,7 @@ public class MainActivity extends AppCompatActivity {
     private void SelectFeature() {
         final CharSequence[] items ={"Identity",
                                     "Blur",
+                                    "Gaussian blur 5 x 5",
                                     "Sharpen",
                                     "Edge Detection 0",
                                     "Edge Detection 1",
@@ -149,6 +156,8 @@ public class MainActivity extends AppCompatActivity {
                     convoluteImage(bitmap,secondBitmap,identity);
                 } else if (items[which].equals("Blur")) {
                     convoluteImage(bitmap,secondBitmap,blur);
+                } else if (items[which].equals("Gaussian blur 5 x 5")) {
+                    convoluteImage(bitmap,secondBitmap,gaussian_blur);
                 } else if (items[which].equals("Sharpen")) {
                     convoluteImage(bitmap,secondBitmap,sharpen);
                 } else if (items[which].equals("Edge Detection 0")){
@@ -230,29 +239,29 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
 
-                if (i == 0) {
-                    for(int k = 0; k < kernel.length/2; k++) {
+                if (i < kernel.length/2) {
+                    for(int k = 0; k < kernel.length/2 - i; k++) {
                         for(int l = 0; l < kernel.length; l++){
                             neigbour[k][l]=0;
                         }
                     }
                 }
-                if (j == 0) {
+                if (j < kernel.length/2) {
                     for(int k = 0; k < kernel.length; k++) {
-                        for(int l = 0; l < kernel.length/2; l++){
+                        for(int l = 0; l < kernel.length/2 - j; l++){
                             neigbour[k][l]=0;
                         }
                     }
                 }
-                if (j == bitmap.getWidth()-1) {
+                if (j > bitmap.getWidth()- kernel.length/2 - 1) {
                     for(int k = 0; k < kernel.length; k++) {
-                        for(int l = kernel.length/2 + 1; l < kernel.length; l++){
+                        for(int l = kernel.length/2 + bitmap.getWidth() - j ; l < kernel.length; l++){
                             neigbour[k][l]=0;
                         }
                     }
                 }
-                if (i == bitmap.getHeight()-1) {
-                    for(int k = kernel.length/2 + 1; k < kernel.length; k++) {
+                if (i > bitmap.getHeight()- kernel.length/2 - 1) {
+                    for(int k = kernel.length/2 + bitmap.getHeight() - i; k < kernel.length; k++) {
                         for(int l = 0; l < kernel.length; l++){
                             neigbour[k][l]=0;
                         }
