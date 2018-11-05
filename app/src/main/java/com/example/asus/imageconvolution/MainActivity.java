@@ -138,6 +138,7 @@ public class MainActivity extends AppCompatActivity {
                                     "Top Sobel",
                                     "Left Sobel",
                                     "Right Sobel",
+                                    "Greyscale",
                                     "Cancel"};
 
         AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
@@ -163,8 +164,10 @@ public class MainActivity extends AppCompatActivity {
                     convoluteImage(bitmap,secondBitmap,rightSobel);
                 } else if (items[which].equals("Left Sobel")){
                     convoluteImage(bitmap,secondBitmap,leftSobel);
-                } else if (items[which].equals("Top Sobel")){
-                    convoluteImage(bitmap,secondBitmap,topSobel);
+                } else if (items[which].equals("Top Sobel")) {
+                    convoluteImage(bitmap, secondBitmap, topSobel);
+                } else if (items[which].equals("Greyscale")){
+                    convertGreyscale();
                 } else if (items[which].equals("Cancel")) {
                     dialog.dismiss();
                 }
@@ -199,6 +202,26 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         builder.show();
+    }
+
+    private void convertGreyscale() {
+        Bitmap newBitmap = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
+        for (int j = 0; j < bitmap.getWidth(); j++) {
+            for (int i = 0; i < bitmap.getHeight(); i++) {
+                int pixel = bitmap.getPixel(j,i);
+                int alpha = (int) Color.alpha(pixel);
+                int grayColor = Color.red(pixel) + Color.green(pixel) + Color.blue(pixel);
+                grayColor /= 3;
+                pixel = 0;
+                pixel = pixel | grayColor;
+                pixel = pixel | (grayColor << 8);
+                pixel = pixel | (grayColor << 16);
+                pixel = pixel | (alpha << 24);
+                newBitmap.setPixel(j, i, pixel);
+            }
+        }
+        bitmap = newBitmap;
+        imageViewBefore.setImageBitmap(bitmap);
     }
 
     private void convoluteImage(Bitmap bitmap,Bitmap secondBitmap, double[][] kernel) {
