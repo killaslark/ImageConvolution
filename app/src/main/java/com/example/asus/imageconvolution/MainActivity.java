@@ -30,38 +30,38 @@ public class MainActivity extends AppCompatActivity {
     private Integer REQUEST_CAMERA = 1, SELECT_FILE = 0;
     private Bitmap bitmap,secondBitmap;
     private double[][] blur = {{0.0625, 0.125, 0.0625},
-                              {0.125, 0.25, 0.125},
-                              {0.0625, 0.125, 0.0625}};
+            {0.125, 0.25, 0.125},
+            {0.0625, 0.125, 0.0625}};
 
-    private double[][] gaussian_blur = {{1/256, 4/256, 6/256, 4/256, 1/256},
-                                        {4/256, 16/256, 24/256, 16/256, 4/256},
-                                        {6/256, 24/256, 36/256, 24/256, 6/256},
-                                        {4/256, 16/256, 24/256, 16/256, 4/256},
-                                        {1/256, 4/256, 6/256, 4/256, 1/256}};
+    private double[][] gaussian_blur = {{0.0039, 0.015625, 0.0234375, 0.015625, 0.0039},
+            {0.015625, 0.0625, 0.09375, 0.0625, 0.015625},
+            {0.0234375, 0.09375, 0.140625, 0.09375, 0.0234375},
+            {0.015625, 0.0625, 0.09375, 0.0625, 0.015625},
+            {0.0039, 0.015625, 0.0234375, 0.015625, 0.0039}};
 
     private double[][] identity = {{0, 0, 0},
-                                {0, 1, 0},
-                                {0, 0, 0}};
+            {0, 1, 0},
+            {0, 0, 0}};
 
     private double[][] edge_detection0 = {{1, 0, -1},
-                                          {0, 0, 0},
-                                          {-1, 0, 1}};
+            {0, 0, 0},
+            {-1, 0, 1}};
 
     private double[][] edge_detection1 =  {{0, 1, 0},
-                                        {1, -4, 1},
-                                        {0, 1, 0}};
+            {1, -4, 1},
+            {0, 1, 0}};
 
     private double[][] outline =  {{-1, -1, -1},
-                                    {-1, 8, -1},
-                                    {-1, -1, -1}};
+            {-1, 8, -1},
+            {-1, -1, -1}};
 
     private double[][] leftSobel =  {{1, 0, -1},
-                                    {2, 0, -2},
-                                    {1, 0, -1}};
+            {2, 0, -2},
+            {1, 0, -1}};
 
     private double[][] rightSobel =  {{-1, 0, 1},
-                                        {-2, 0, 2},
-                                        {-1, 0, 1}};
+            {-2, 0, 2},
+            {-1, 0, 1}};
 
 
     private double[][] topSobel =  {{1, 2, 1},
@@ -135,18 +135,18 @@ public class MainActivity extends AppCompatActivity {
 
     private void SelectFeature() {
         final CharSequence[] items ={"Identity",
-                                    "Blur",
-                                    "Gaussian blur 5 x 5",
-                                    "Sharpen",
-                                    "Edge Detection 0",
-                                    "Edge Detection 1",
-                                    "Outline",
-                                    "Bottom Sobel",
-                                    "Top Sobel",
-                                    "Left Sobel",
-                                    "Right Sobel",
-                                    "Greyscale",
-                                    "Cancel"};
+                "Blur",
+                "Gaussian blur 5 x 5",
+                "Sharpen",
+                "Edge Detection 0",
+                "Edge Detection 1",
+                "Outline",
+                "Bottom Sobel",
+                "Top Sobel",
+                "Left Sobel",
+                "Right Sobel",
+                "Greyscale",
+                "Cancel"};
 
         AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
         builder.setTitle("Feature");
