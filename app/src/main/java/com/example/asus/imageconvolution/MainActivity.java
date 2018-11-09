@@ -22,11 +22,14 @@ import android.widget.Toast;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Vector;
+
+import static java.lang.Math.sqrt;
 
 public class MainActivity extends AppCompatActivity {
 
-
+    private ArrayList<double[][]> selectedKernel = new ArrayList<>();
     private ImageView imageViewBefore,imageViewAfter;
     private EditText[][] matrixView = new EditText[3][3];
     private Integer REQUEST_CAMERA = 1, SELECT_FILE = 0;
@@ -78,12 +81,19 @@ public class MainActivity extends AppCompatActivity {
             {-1, 5, -1},
             {0, -1, 0}};
 
-    private double[][] robert =  {{0, 1},
+    private double[][] robert1 =  {{0, 1},
             {-1, 0}};
 
-    private double[][] prewitt =  {{-1, -1, -1},
+    private double[][] robert2 =  {{1, 0},
+            {0, -1}};
+
+    private double[][] prewitt_vertical =  {{-1, -1, -1},
             {0, 0, 0},
             {1, 1, 1}};
+
+    private double[][] prewitt_horizontal =  {{1, 0, -1},
+            {1, 0, -1},
+            {1, 0, -1}};
 
     private double[][] custom_matrix =  {{0, 0, 0},
             {0, 0, 0},
@@ -174,6 +184,7 @@ public class MainActivity extends AppCompatActivity {
                 "Top Sobel",
                 "Left Sobel",
                 "Right Sobel",
+                "Sobel",
                 "Robert",
                 "Prewitt",
                 "Custom",
@@ -207,10 +218,21 @@ public class MainActivity extends AppCompatActivity {
                     convoluteImage(bitmap,secondBitmap,leftSobel);
                 } else if (items[which].equals("Top Sobel")) {
                     convoluteImage(bitmap, secondBitmap, topSobel);
-                } else if (items[which].equals("Robert")){
-                    convoluteImage(bitmap,secondBitmap,robert);
+                } else if (items[which].equals("Sobel")){
+                    selectedKernel.clear();
+                    selectedKernel.add(topSobel);
+                    selectedKernel.add(rightSobel);
+                    convoluteImage(bitmap,secondBitmap,selectedKernel);
+                }else if (items[which].equals("Robert")){
+                    selectedKernel.clear();
+                    selectedKernel.add(robert1);
+                    selectedKernel.add(robert2);
+                    convoluteImage(bitmap,secondBitmap,selectedKernel);
                 } else if (items[which].equals("Prewitt")) {
-                    convoluteImage(bitmap, secondBitmap,prewitt);
+                    selectedKernel.clear();
+                    selectedKernel.add(prewitt_horizontal);
+                    selectedKernel.add(prewitt_vertical);
+                    convoluteImage(bitmap, secondBitmap,selectedKernel);
                 } else if (items[which].equals("Custom")) {
                     updateCustomMatrix();
                     convoluteImage(bitmap, secondBitmap, custom_matrix);
@@ -283,6 +305,132 @@ public class MainActivity extends AppCompatActivity {
         imageViewBefore.setImageBitmap(bitmap);
     }
 
+    private void convoluteImage(Bitmap bitmap,Bitmap secondBitmap, ArrayList<double[][]> _kernel) {
+        int pixel;
+        int red, green, blue, alpha, pix;
+        Bitmap newBitmap = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
+        double[][] kernel = _kernel.get(0);
+        int[][][] neighbour = new int[_kernel.size()][kernel.length][kernel[0].length];
+        int[][][] access_neighbourx = new int[_kernel.size()][kernel.length][kernel[0].length];
+        int[][][] access_neighboury = new int[_kernel.size()][kernel.length][kernel[0].length];
+
+        // Initiate matrix offset
+        for (int nkernel = 0; nkernel < _kernel.size(); nkernel++) {
+            kernel = _kernel.get(nkernel);
+            for(int i = 0; i < kernel.length; i++) {
+                for(int j = 0; j < kernel[i].length; j++) {
+                    access_neighboury[nkernel][i][j] = kernel.length/2 - i;
+                    access_neighbourx[nkernel][i][j] = kernel.length/2 - j;
+                }
+            }
+        }
+
+        Log.d("Width Heigth ", ""+bitmap.getWidth()+", "+bitmap.getHeight());
+
+        int[] convolutionSum = new int[_kernel.size()];
+
+        for (int j = 0; j < bitmap.getWidth(); j++) {
+            for (int i = 0; i < bitmap.getHeight(); i++) {
+
+                // Set zero all operation
+                int step = 0;
+                for (int n = 0; n < convolutionSum.length; n++) {
+                    convolutionSum[n] = 0;
+                }
+                for (int nkernel = 0; nkernel < _kernel.size(); nkernel++) {
+                    kernel = _kernel.get(nkernel);
+                    // Initiate matrix padding
+                    for(int a = 0; a < kernel.length; a++) {
+                        for(int b = 0; b < kernel[0].length; b++) {
+                            neighbour[nkernel][a][b] = 1;
+                        }
+                    }
+                    if (i < kernel.length/2) {
+                        for(int k = 0; k < kernel.length/2 - i; k++) {
+                            for(int l = 0; l < kernel.length; l++){
+                                neighbour[nkernel][k][l]=0;
+                            }
+                        }
+                    }
+                    if (j < kernel.length/2) {
+                        for(int k = 0; k < kernel.length; k++) {
+                            for(int l = 0; l < kernel.length/2 - j; l++){
+                                neighbour[nkernel][k][l]=0;
+                            }
+                        }
+                    }
+                    if (j > bitmap.getWidth()- kernel.length/2 - 1) {
+                        for(int k = 0; k < kernel.length; k++) {
+                            for(int l = kernel.length/2 + bitmap.getWidth() - j ; l < kernel.length; l++){
+                                neighbour[nkernel][k][l]=0;
+                            }
+                        }
+                    }
+                    if (i > bitmap.getHeight()- kernel.length/2 - 1) {
+                        for(int k = kernel.length/2 + bitmap.getHeight() - i; k < kernel.length; k++) {
+                            for(int l = 0; l < kernel.length; l++){
+                                neighbour[nkernel][k][l]=0;
+                            }
+                        }
+                    }
+
+                    // Intiate pixel with 0
+                    red = 0;
+                    green = 0;
+                    blue = 0;
+                    pix = 0;
+                    alpha = 0;
+
+                    // Replace pixel intensity
+                    for (int k = 0; k < kernel.length; k++){
+                        for (int l = 0; l < kernel[0].length; l++){
+                            if (neighbour[nkernel][k][l] == 1) {
+                                pixel = bitmap.getPixel(j - access_neighbourx[nkernel][k][l],(i - access_neighboury[nkernel][k][l]));
+                                red +=  (Color.red(pixel) * kernel[k][l]);
+                                green +=  (Color.green(pixel) * kernel[k][l]);
+                                blue +=  (Color.blue(pixel) * kernel[k][l]);
+                                convolutionSum[step] = red + green + blue;
+                                convolutionSum[step] = convolutionSum[step] / 3;
+                                step++;
+                            }
+                        }
+                    }
+
+                    double gradient = 0;
+                    for(int n = 0; n < convolutionSum.length; n++) {
+                        gradient += convolutionSum[n] * convolutionSum[n];
+                    }
+                    gradient = sqrt(gradient);
+                    red = (int)gradient;
+                    green = (int)gradient;
+                    blue = (int)gradient;
+
+                    alpha = (int) Color.alpha(bitmap.getPixel(j,i));
+                    if(red  > 255) red = 255;
+                    if(green > 255) green = 255;
+                    if(blue > 255) blue = 255;
+                    if(red < 0) red = 0;
+                    if(green < 0) green = 0;
+                    if(blue < 0) blue = 0;
+
+                    pix = pix | blue;
+                    pix = pix | (green << 8);
+                    pix = pix | (red << 16);
+                    pix = pix | (alpha << 24);
+
+                    newBitmap.setPixel(j, i, pix);
+                }
+            }
+        }
+
+
+
+
+
+        imageViewAfter.setImageBitmap(newBitmap);
+        imageViewAfter.setVisibility(View.VISIBLE);
+    }
+
     private void convoluteImage(Bitmap bitmap,Bitmap secondBitmap, double[][] kernel) {
         int pixel;
         int red, green, blue, alpha, pix;
@@ -297,6 +445,8 @@ public class MainActivity extends AppCompatActivity {
                 access_neighbourx[i][j] = kernel.length/2 - j;
             }
         }
+
+
 
 
         Log.d("Width Heigth ", ""+bitmap.getWidth()+", "+bitmap.getHeight());
