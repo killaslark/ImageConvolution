@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.Point;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -160,10 +161,173 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private Bitmap resizeBitmap(Bitmap bitmap) {
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+        int resizedWidth, resizedHeight;
 
+        if (width >= height) {
+            resizedWidth = Math.min(width, 300);
+            resizedHeight = resizedWidth * height / width;
+        } else {
+            resizedHeight = Math.min(height, 400);
+            resizedWidth = resizedHeight *  width / height;
+        }
+
+        return Bitmap.createScaledBitmap(bitmap, resizedWidth, resizedHeight, true);
+    }
+
+    private  Bitmap resizeBitmap(Bitmap bitmap, int widthResized, int heightResized) {
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+        int resizedWidth, resizedHeight;
+
+        if (width >= height) {
+            resizedWidth = Math.min(width, widthResized);
+            resizedHeight = resizedWidth * height / width;
+        } else {
+            resizedHeight = Math.min(height, heightResized);
+            resizedWidth = resizedHeight *  width / height;
+        }
+
+        return Bitmap.createScaledBitmap(bitmap, resizedWidth, resizedHeight, true);
+    }
+
+    Bitmap getFaceFromBitmap(Bitmap bitmap) {
+        final Bitmap originalBitmap = resizeBitmap(bitmap);
+        final Bitmap processedBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true);
+
+
+        final int height = originalBitmap.getHeight();
+        final int width = originalBitmap.getWidth();
+
+        Parallel.For(0, height, new LoopBody<Integer>() {
+            @Override
+            public void run(Integer y) {
+                int[] resultPixels = new int[width];
+                originalBitmap.getPixels(resultPixels, 0, width, 0, y, width, 1);
+
+                for (int x = 0; x < width; ++x) {
+                    resultPixels[x] = isSkinColor(resultPixels[x]) ? Color.WHITE : Color.BLACK;
+                }
+                processedBitmap.setPixels(resultPixels, 0, width, 0, y, width, 1);
+            }
+        });
+
+        final int[] faceBox = getFaceBox(processedBitmap);
+        final int[] mouthBox = getmouthBox(processedBitmap,faceBox);
+
+        Parallel.For(0, height, new LoopBody<Integer>() {
+            @Override
+            public void run(Integer y) {
+                int[] resultPixels = new int[width];
+                processedBitmap.getPixels(resultPixels, 0, width, 0, y, width, 1);
+
+                for (int x = 0; x < width; ++x) {
+
+                    resultPixels[x] = (x == faceBox[3] || x == faceBox[0] || y == faceBox[1] || y == faceBox[2]) ? Color.RED : resultPixels[x];
+                }
+                processedBitmap.setPixels(resultPixels, 0, width, 0, y, width, 1);
+            }
+        });
+
+        return processedBitmap;
+    }
+
+    private int[] getFaceBox(Bitmap bitmap) {
+
+        int minWidth = bitmap.getWidth() + 1;
+        int maxWidth = 0;
+        int minHeight = bitmap.getWidth() + 1 ;
+        int maxHeight = 0;
+        for (int j = 0; j < bitmap.getWidth(); j++) {
+            for (int i = 0; i < bitmap.getHeight(); i++) {
+                int pixel = bitmap.getPixel(j,i);
+                int grayColor = Color.red(pixel) + Color.green(pixel) + Color.blue(pixel);
+                grayColor /= 3;
+                if (grayColor == 255) {
+                    if (j > maxWidth) maxWidth = j;
+                    if (j < minWidth) minWidth = j;
+                    if (i > maxHeight) maxHeight = i;
+                    if (i < minHeight) minHeight = i;
+
+                }
+            }
+        }
+        int[] borderPoint = new int[]{minWidth,minHeight,maxHeight,maxWidth};
+        Log.d("X", ""+borderPoint[0]+" "+borderPoint[1]+" "+borderPoint[2]+ " "+ borderPoint[3]);
+        return borderPoint;
+    }
+
+    private int sumRegion(int[] borderPoint, Bitmap bitmap) {
+        int sum = 0;
+        for (int j = borderPoint[0]; j <= borderPoint[3]; j++) {
+            for (int i = borderPoint[1]; i < borderPoint[2]; i++) {
+                int pixel = bitmap.getPixel(j,i);
+                int grayColor = Color.red(pixel) + Color.green(pixel) + Color.blue(pixel);
+                grayColor /= 3;
+                if (grayColor == 0) {
+                    sum += 1;
+                }
+
+            }
+        }
+        return  sum;
+    }
+
+    private int[] getmouthBox(Bitmap bitmap, int[] faceBox) {
+        int minWidth = faceBox[0];
+        int maxWidth = faceBox[3] + 1 ;
+        int minHeight = faceBox[2] + 1 ;
+        int maxHeight = 0;
+        for (int j = 0; j < bitmap.getWidth(); j++) {
+            for (int i = 0; i < bitmap.getHeight(); i++) {
+                int pixel = bitmap.getPixel(j,i);
+                int grayColor = Color.red(pixel) + Color.green(pixel) + Color.blue(pixel);
+                grayColor /= 3;
+                if (grayColor == 255) {
+                    if (j > maxWidth) maxWidth = j;
+                    if (j < minWidth) minWidth = j;
+                    if (i > maxHeight) maxHeight = i;
+                    if (j < minHeight) minHeight = i;
+
+                }
+            }
+        }
+        int[] borderPoint = new int[]{minWidth,minHeight,maxHeight,maxWidth};
+        Log.d("X", ""+borderPoint[0]+" "+borderPoint[1]+" "+borderPoint[2]+ " "+ borderPoint[3]);
+        return borderPoint;
+    }
+
+    private boolean isSkinColor(int pixel) {
+        int[] YCbCr = getYCbCr(pixel);
+        return (YCbCr[0] > 80 && YCbCr[1] > 85 && YCbCr[1] < 135 &&
+                YCbCr[2] > 135 && YCbCr[2] < 180);
+    }
+
+    private int[] getYCbCr(int pixel) {
+        int[] YCbCr = new int[3];
+
+        int[] RGB = getRGB(pixel);
+        YCbCr[0] = (int) (0.299 * RGB[0] + 0.587 * RGB[1] + 0.114 * RGB[2]);
+        YCbCr[1] = (int) (128 - 0.169 * RGB[0] - 0.331 * RGB[1] + 0.5 * RGB[2]);
+        YCbCr[2] = (int) (128 + 0.5 * RGB[0] - 0.419 * RGB[1] - 0.081 * RGB[2]);
+        return YCbCr;
+    }
+
+    private int[] getRGB(int pixel) {
+        int[] RGB = new int[3];
+
+        RGB[0] = (pixel & 0x00FF0000) >> 16;
+        RGB[1] = (pixel & 0x0000FF00) >> 8;
+        RGB[2] = (pixel & 0x000000FF);
+
+        return RGB;
+    }
 
     private void SelectFeature() {
-        final CharSequence[] items ={"Identity",
+        final CharSequence[] items ={"Face Detect",
+                "Identity",
                 "Blur",
                 "Gaussian blur 5 x 5",
                 "Sharpen",
@@ -185,7 +349,10 @@ public class MainActivity extends AppCompatActivity {
         builder.setItems(items, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                if(items[which].equals("Identity")) {
+                if(items[which].equals("Face Detect")) {
+                    imageViewAfter.setImageBitmap(getFaceFromBitmap(bitmap));
+                    imageViewAfter.setVisibility(View.VISIBLE);
+                } else if(items[which].equals("Identity")) {
                     convoluteImage(bitmap,secondBitmap,identity);
                 } else if (items[which].equals("Blur")) {
                     convoluteImage(bitmap,secondBitmap,blur);
@@ -265,6 +432,7 @@ public class MainActivity extends AppCompatActivity {
     }
     private void convertGreyscale() {
         Bitmap newBitmap = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
+
         for (int j = 0; j < bitmap.getWidth(); j++) {
             for (int i = 0; i < bitmap.getHeight(); i++) {
                 int pixel = bitmap.getPixel(j,i);
