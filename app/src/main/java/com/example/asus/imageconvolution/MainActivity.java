@@ -1,4 +1,4 @@
-package com.example.asus.imageconvolution2;
+package com.example.asus.imageconvolution;
 
 import android.app.Activity;
 import android.content.DialogInterface;
@@ -6,7 +6,6 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
-import android.graphics.Point;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.MediaStore;
