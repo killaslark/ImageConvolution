@@ -1,4 +1,4 @@
-package com.example.asus.imageconvolution;
+package com.example.asus.imageconvolution2;
 
 import android.app.Activity;
 import android.content.DialogInterface;
@@ -23,7 +23,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Vector;
 
 import static java.lang.Math.sqrt;
 
@@ -327,16 +326,19 @@ public class MainActivity extends AppCompatActivity {
 
         Log.d("Width Heigth ", ""+bitmap.getWidth()+", "+bitmap.getHeight());
 
-        int[] convolutionSum = new int[_kernel.size()];
+        int[][] convolutionSum = new int[3][_kernel.size()];
 
         for (int j = 0; j < bitmap.getWidth(); j++) {
             for (int i = 0; i < bitmap.getHeight(); i++) {
 
                 // Set zero all operation
                 int step = 0;
-                for (int n = 0; n < convolutionSum.length; n++) {
-                    convolutionSum[n] = 0;
+                for(int m = 0; m < 3; m++) {
+                    for (int n = 0; n < convolutionSum[0].length; n++) {
+                        convolutionSum[m][n] = 0;
+                    }
                 }
+
                 for (int nkernel = 0; nkernel < _kernel.size(); nkernel++) {
                     kernel = _kernel.get(nkernel);
                     // Initiate matrix padding
@@ -389,21 +391,29 @@ public class MainActivity extends AppCompatActivity {
                                 red +=  (Color.red(pixel) * kernel[k][l]);
                                 green +=  (Color.green(pixel) * kernel[k][l]);
                                 blue +=  (Color.blue(pixel) * kernel[k][l]);
-                                convolutionSum[step] = red + green + blue;
-                                convolutionSum[step] = convolutionSum[step] / 3;
-                                step++;
+                                convolutionSum[0][step] = red;
+                                convolutionSum[1][step] = green;
+                                convolutionSum[2][step] = blue;
                             }
                         }
                     }
+                    step++;
 
-                    double gradient = 0;
-                    for(int n = 0; n < convolutionSum.length; n++) {
-                        gradient += convolutionSum[n] * convolutionSum[n];
+                    double gradient[] = new double[3];
+                    for(int m = 0; m < 3; m++) {
+                        gradient[m] = 0;
                     }
-                    gradient = sqrt(gradient);
-                    red = (int)gradient;
-                    green = (int)gradient;
-                    blue = (int)gradient;
+                    for(int m = 0; m < 3; m++) {
+                        for(int n = 0; n < convolutionSum[0].length; n++) {
+                            gradient[m] += convolutionSum[m][n] * convolutionSum[m][n];
+                        }
+                    }
+                    for(int m = 0; m < 3; m++) {
+                        gradient[m] = sqrt(gradient[m]);
+                    }
+                    red = (int)gradient[0];
+                    green = (int)gradient[1];
+                    blue = (int)gradient[2];
 
                     alpha = (int) Color.alpha(bitmap.getPixel(j,i));
                     if(red  > 255) red = 255;
