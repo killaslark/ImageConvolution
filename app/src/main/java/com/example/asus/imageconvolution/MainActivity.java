@@ -233,7 +233,7 @@ public class MainActivity extends AppCompatActivity {
         //final int[] mouthBox = getmouthBox(processedBitmap,faceBox);
         Bitmap newBitmap = processedBitmap;
         for(int i = 0; i < boundingBox.length;i++){
-            if(boundingBox[i].valid(20))
+            if(boundingBox[i].valid(50))
                 newBitmap = boundingBox[i].drawBox(newBitmap);
         }
 //        Parallel.For(0, height, new LoopBody<Integer>() {
@@ -283,7 +283,6 @@ public class MainActivity extends AppCompatActivity {
         for(int i = 0;i < boundingBox.length;i++){
             boundingBox[i] = new Box();
         }
-        Log.d("LABEL", Integer.toString(labelCount));
         for(int i = 0; i < label.length;i++){
             for(int j = 0; j < label[i].length;j++) {
                 if(label[i][j] != 0){
@@ -306,23 +305,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private int[][] getLabel(Bitmap bitmap){
-        ArrayList<ArrayList<Label>> linked = new ArrayList<>();
+        ArrayList<ArrayList<Integer>> linked = new ArrayList<>();
         //int label = 0;
         int[][] label = new int[bitmap.getHeight()][bitmap.getWidth()];
         int currentLabel = 1;
         for(int i = 0; i < bitmap.getHeight();i++){
             for(int j = 0; j < bitmap.getWidth();j++){
                 if(isWhite(bitmap.getPixel(j,i))){
-                    ArrayList<Label> neighbors = getWhiteNeighbor(label, i, j);
+                    ArrayList<Integer> neighbors = getWhiteNeighbor(label, i, j);
                     if(neighbors.size() == 0){
                         label[i][j] = currentLabel;
-                        linked.add(new ArrayList<Label>());
-                        linked.get(linked.size()-1).add(new Label(j,i,currentLabel));
+                        linked.add(new ArrayList<Integer>());
+                        linked.get(linked.size()-1).add(currentLabel);
                         currentLabel++;
                     } else {
                         label[i][j] = minLabel(neighbors);
-                        for(Label neighbor : neighbors){
-                            linked.get(neighbor.getLabel()-1).addAll(neighbors);
+                        for(int neighbor : neighbors){
+                            linked.get(neighbor-1).addAll(neighbors);
                         }
                     }
                 }
@@ -332,7 +331,7 @@ public class MainActivity extends AppCompatActivity {
         for(int i = 0; i < bitmap.getHeight();i++) {
             for (int j = 0; j < bitmap.getWidth(); j++) {
                 if(isWhite(bitmap.getPixel(j,i))){
-                    ArrayList<Label> EquivalentLabels = linked.get(label[i][j]-1);
+                    ArrayList<Integer> EquivalentLabels = linked.get(label[i][j]-1);
                     label[i][j] = minLabel(EquivalentLabels);
                     if(newLabelCount < label[i][j]){
                         newLabelCount = label[i][j];
@@ -344,48 +343,38 @@ public class MainActivity extends AppCompatActivity {
         return label;
     }
 
-    //union: http://stackoverflow.com/questions/5283047/intersection-and-union-of-arraylists-in-java
-    public ArrayList<Label> union(ArrayList<Label> list1, ArrayList<Label> list2) {
-        Set<Label> set = new HashSet<Label>();
-
-        set.addAll(list1);
-        set.addAll(list2);
-
-        return new ArrayList<Label>(set);
-    }
-
-    private int minLabel(List<Label> labels){
-        int min = labels.get(0).getLabel();
+    private int minLabel(List<Integer> labels){
+        int min = labels.get(0);
         for(int i = 1; i < labels.size();i++){
-            if(min > labels.get(i).getLabel()){
-                min = labels.get(i).getLabel();
+            if(min > labels.get(i)){
+                min = labels.get(i);
             }
         }
         return min;
     }
 
-    private ArrayList<Label> getWhiteNeighbor(int[][] label, int x, int y){
-        ArrayList<Label> white = new ArrayList<Label>();
+    private ArrayList<Integer> getWhiteNeighbor(int[][] label, int x, int y){
+        ArrayList<Integer> white = new ArrayList<Integer>();
         boolean top = y-1 >= 0;
         boolean right = x+1 < label.length;
         boolean left = x-1 >= 0;
         boolean bottom = y+1 < label[0].length;
         if(top && label[x][y-1] != 0)
-            white.add(new Label(x,y-1,label[x][y-1]));
+            white.add(label[x][y-1]);
         if(right && top && label[x+1][y-1] != 0)
-            white.add(new Label(x+1,y-1,label[x+1][y-1]));
+            white.add(label[x+1][y-1]);
         if(right && label[x+1][y] != 0)
-            white.add(new Label(x+1,y,label[x+1][y]));
+            white.add(label[x+1][y]);
         if(right && bottom && label[x+1][y+1] != 0)
-            white.add(new Label(x+1,y+1,label[x+1][y+1]));
+            white.add(label[x+1][y+1]);
         if(bottom && label[x][y+1] != 0)
-            white.add(new Label(x,y+1,label[x][y+1]));
+            white.add(label[x][y+1]);
         if(left && bottom && label[x-1][y+1] != 0)
-            white.add(new Label(x-1,y+1,label[x-1][y+1]));
+            white.add(label[x-1][y+1]);
         if(left && label[x-1][y] != 0)
-            white.add(new Label(x-1,y,label[x-1][y]));
+            white.add(label[x-1][y]);
         if(left && top && label[x-1][y-1] != 0)
-            white.add(new Label(x-1,y-1,label[x-1][y-1]));
+            white.add(label[x-1][y-1]);
         return white;
     }
 
