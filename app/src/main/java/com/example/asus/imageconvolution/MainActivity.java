@@ -105,9 +105,17 @@ public class MainActivity extends AppCompatActivity {
             {0, 0, 0},
             {0, 0, 0}};
 
-    private int[][] operand = {{1, 1, 1},
+    // Minkowski Kernel
+    private int[][][] operand = {
+            {{1, 1, 1},
             {1, 1, 1},
-            {1, 1, 1}};
+            {1, 1, 1}},
+
+            {{1, 1, 1, 1, 1},
+            {1, 1, 1, 1, 1},
+            {1, 1, 1, 1, 1},
+            {1, 1, 1, 1, 1},
+            {1, 1, 1, 1, 1}}};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -211,20 +219,23 @@ public class MainActivity extends AppCompatActivity {
         return Bitmap.createScaledBitmap(bitmap, resizedWidth, resizedHeight, true);
     }
 
-    private void dilate(int _x, int _y, int[][] operand) {
+    private void dilate(int _x, int _y, int size) {
         int mid = operand.length / 2;
-        for(int i = 0; i < operand.length; i++) {
+        Log.d("MID is: ", Integer.toString(mid));
+        for(int i = 0; i < operand[size].length; i++) {
             int x = _x + i - mid;
-            for(int j = 0; j < operand.length; j++) {
+            for(int j = 0; j < operand[size].length; j++) {
                 int y = _y + j - mid;
-                if(x >= 0 && y >= 0 && x <= beforeMinkowski.length && y <= beforeMinkowski[0].length) {
-                    afterMinkowski[x][y] = operand[i][j];
+                if(x >= 0 && y >= 0 && x < beforeMinkowski.length && y < beforeMinkowski[0].length) {
+                    afterMinkowski[x][y] = operand[size][i][j] == 1 ? Color.WHITE : Color.BLACK;
+                    //Log.d("X Y is: ", Integer.toString(x) + " " + Integer.toString(y));
+                    //Log.d("I J is: ", Integer.toString(i) + " " + Integer.toString(j));
                 }
             }
         }
     }
 
-    private Bitmap dilation(Bitmap input, int[][] operand) {
+    private Bitmap dilation(Bitmap input, int size) {
         Bitmap output = Bitmap.createBitmap(input.getWidth(), input.getHeight(), Bitmap.Config.ARGB_8888);
         final int height = input.getHeight();
         final int width = input.getWidth();
@@ -234,24 +245,50 @@ public class MainActivity extends AppCompatActivity {
         for(int i = 0; i < width; i++) {
             for(int j = 0; j < height; j++) {
                 beforeMinkowski[i][j] = input.getPixel(i, j);
+                Log.d("Minkowski Info: ",Integer.toString(beforeMinkowski[i][j]));
             }
         }
         for(int i = 0; i < width; i++) {
             for(int j = 0; j < height; j++) {
-                if(beforeMinkowski[i][j] == 1) {
-                    dilate(i, j, operand);
+                if(beforeMinkowski[i][j] == Color.WHITE) {
+                    dilate(i, j, size);
+                } else {
+                    afterMinkowski[i][j] = beforeMinkowski[i][j];
                 }
             }
         }
         for(int i = 0; i < width; i++) {
             for(int j = 0; j < height; j++) {
                 output.setPixel(i, j, afterMinkowski[i][j]);
-                Log.d("OUTPIXEL: ", Integer.toString(afterMinkowski[i][j]));
+                //Log.d("OUTPIXEL: ", Integer.toString(afterMinkowski[i][j]));
                 //Log.d("PIXEL: ", Integer.toString(beforeMinkowski[i][j]));
             }
         }
-
         return output;
+    }
+
+    Bitmap preprocessSkinColor(Bitmap bitmap) {
+        final Bitmap originalBitmap = resizeBitmap(bitmap);
+        final Bitmap processedBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true);
+
+
+        final int height = originalBitmap.getHeight();
+        final int width = originalBitmap.getWidth();
+
+        Parallel.For(0, height, new LoopBody<Integer>() {
+            @Override
+            public void run(Integer y) {
+                int[] resultPixels = new int[width];
+                originalBitmap.getPixels(resultPixels, 0, width, 0, y, width, 1);
+
+                for (int x = 0; x < width; ++x) {
+                    resultPixels[x] = isSkinColor(resultPixels[x]) ? Color.WHITE : Color.BLACK;
+                }
+                processedBitmap.setPixels(resultPixels, 0, width, 0, y, width, 1);
+            }
+        });
+
+        return processedBitmap;
     }
 
     Bitmap getFaceFromBitmap(Bitmap bitmap) {
@@ -519,6 +556,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void SelectFeature() {
         final CharSequence[] items ={"Face Detect",
+                "Preprocess Skin Color",
                 "Dilate",
                 "Identity",
                 "Blur",
@@ -546,8 +584,12 @@ public class MainActivity extends AppCompatActivity {
                 if(items[which].equals("Face Detect")) {
                     imageViewAfter.setImageBitmap(getFaceFromBitmap(bitmap));
                     imageViewAfter.setVisibility(View.VISIBLE);
+                } else if(items[which].equals("Preprocess Skin Color")) {
+                    imageViewAfter.setImageBitmap(preprocessSkinColor(bitmap));
+                    imageViewAfter.setVisibility(View.VISIBLE);
                 } else if(items[which].equals("Dilate")) {
-                    imageViewAfter.setImageBitmap(dilation(getFaceFromBitmap(bitmap), operand));
+                    imageViewBefore.setImageBitmap(preprocessSkinColor(bitmap));
+                    imageViewAfter.setImageBitmap(dilation(preprocessSkinColor(bitmap), 1));
                     imageViewAfter.setVisibility(View.VISIBLE);
                 } else if(items[which].equals("Identity")) {
                     convoluteImage(bitmap,secondBitmap,identity);
