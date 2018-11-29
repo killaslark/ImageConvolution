@@ -23,6 +23,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.Vector;
 
 import static java.lang.Math.sqrt;
 
@@ -35,6 +39,7 @@ public class MainActivity extends AppCompatActivity {
     private Bitmap bitmap,secondBitmap;
     private int[][] beforeMinkowski;
     private int[][] afterMinkowski;
+    private int labelCount = 0;
     private double[][] blur = {{0.0625, 0.125, 0.0625},
             {0.125, 0.25, 0.125},
             {0.0625, 0.125, 0.0625}};
@@ -270,24 +275,30 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        final int[] faceBox = getFaceBox(processedBitmap);
-        final int[] mouthBox = getmouthBox(processedBitmap,faceBox);
+        //final int[] faceBox = getFaceBox(processedBitmap);
+        int[][] label = getLabel(processedBitmap);
+        Box[] boundingBox = getRegion(label);
+        //final int[] mouthBox = getmouthBox(processedBitmap,faceBox);
+        Bitmap newBitmap = processedBitmap;
+        for(int i = 0; i < boundingBox.length;i++){
+            if(boundingBox[i].valid(50))
+                newBitmap = boundingBox[i].drawBox(newBitmap);
+        }
+//        Parallel.For(0, height, new LoopBody<Integer>() {
+//            @Override
+//            public void run(Integer y) {
+//                int[] resultPixels = new int[width];
+//                processedBitmap.getPixels(resultPixels, 0, width, 0, y, width, 1);
+//
+//                for (int x = 0; x < width; ++x) {
+//
+//                    resultPixels[x] = (x == faceBox[3] || x == faceBox[0] || y == faceBox[1] || y == faceBox[2]) ? Color.RED : resultPixels[x];
+//                }
+//                processedBitmap.setPixels(resultPixels, 0, width, 0, y, width, 1);
+//            }
+//        });
 
-        Parallel.For(0, height, new LoopBody<Integer>() {
-            @Override
-            public void run(Integer y) {
-                int[] resultPixels = new int[width];
-                processedBitmap.getPixels(resultPixels, 0, width, 0, y, width, 1);
-
-                for (int x = 0; x < width; ++x) {
-
-                    resultPixels[x] = (x == faceBox[3] || x == faceBox[0] || y == faceBox[1] || y == faceBox[2]) ? Color.RED : resultPixels[x];
-                }
-                processedBitmap.setPixels(resultPixels, 0, width, 0, y, width, 1);
-            }
-        });
-
-        return processedBitmap;
+        return newBitmap;
     }
 
     private int[] getFaceBox(Bitmap bitmap) {
@@ -315,6 +326,131 @@ public class MainActivity extends AppCompatActivity {
         return borderPoint;
     }
 
+    private Box[] getRegion(int[][] label){
+        Box[] boundingBox = new Box[labelCount];
+        for(int i = 0;i < boundingBox.length;i++){
+            boundingBox[i] = new Box();
+        }
+        for(int i = 0; i < label.length;i++){
+            for(int j = 0; j < label[i].length;j++) {
+                if(label[i][j] != 0){
+                    if(boundingBox[label[i][j]-1].left < 0 || j < boundingBox[label[i][j]-1].left){
+                        boundingBox[label[i][j]-1].left = j;
+                    }
+                    if(boundingBox[label[i][j]-1].right < 0 || j > boundingBox[label[i][j]-1].right){
+                        boundingBox[label[i][j]-1].right = j;
+                    }
+                    if(boundingBox[label[i][j]-1].top < 0 || i < boundingBox[label[i][j]-1].top){
+                        boundingBox[label[i][j]-1].top = i;
+                    }
+                    if(boundingBox[label[i][j]-1].bottom < 0 || i > boundingBox[label[i][j]-1].bottom){
+                        boundingBox[label[i][j]-1].bottom = i;
+                    }
+                }
+            }
+        }
+        return boundingBox;
+    }
+
+    private int[][] getLabel(Bitmap bitmap){
+        ArrayList<ArrayList<Integer>> linked = new ArrayList<>();
+        //int label = 0;
+        int[][] label = new int[bitmap.getHeight()][bitmap.getWidth()];
+        int currentLabel = 1;
+        for(int i = 0; i < bitmap.getHeight();i++){
+            for(int j = 0; j < bitmap.getWidth();j++){
+                if(isWhite(bitmap.getPixel(j,i))){
+                    ArrayList<Integer> neighbors = getWhiteNeighbor(label, i, j);
+                    if(neighbors.size() == 0){
+                        label[i][j] = currentLabel;
+                        linked.add(new ArrayList<Integer>());
+                        linked.get(linked.size()-1).add(currentLabel);
+                        currentLabel++;
+                    } else {
+                        label[i][j] = minLabel(neighbors);
+                        for(int neighbor : neighbors){
+                            linked.get(neighbor-1).addAll(neighbors);
+                        }
+                    }
+                }
+            }
+        }
+        int newLabelCount = 0;
+        for(int i = 0; i < bitmap.getHeight();i++) {
+            for (int j = 0; j < bitmap.getWidth(); j++) {
+                if(isWhite(bitmap.getPixel(j,i))){
+                    ArrayList<Integer> EquivalentLabels = linked.get(label[i][j]-1);
+                    label[i][j] = minLabel(EquivalentLabels);
+                    if(newLabelCount < label[i][j]){
+                        newLabelCount = label[i][j];
+                    }
+                }
+            }
+        }
+        labelCount = newLabelCount;
+        return label;
+    }
+
+    private int minLabel(List<Integer> labels){
+        int min = labels.get(0);
+        for(int i = 1; i < labels.size();i++){
+            if(min > labels.get(i)){
+                min = labels.get(i);
+            }
+        }
+        return min;
+    }
+
+    private ArrayList<Integer> getWhiteNeighbor(int[][] label, int x, int y){
+        ArrayList<Integer> white = new ArrayList<Integer>();
+        boolean top = y-1 >= 0;
+        boolean right = x+1 < label.length;
+        boolean left = x-1 >= 0;
+        boolean bottom = y+1 < label[0].length;
+        if(top && label[x][y-1] != 0)
+            white.add(label[x][y-1]);
+        if(right && top && label[x+1][y-1] != 0)
+            white.add(label[x+1][y-1]);
+        if(right && label[x+1][y] != 0)
+            white.add(label[x+1][y]);
+        if(right && bottom && label[x+1][y+1] != 0)
+            white.add(label[x+1][y+1]);
+        if(bottom && label[x][y+1] != 0)
+            white.add(label[x][y+1]);
+        if(left && bottom && label[x-1][y+1] != 0)
+            white.add(label[x-1][y+1]);
+        if(left && label[x-1][y] != 0)
+            white.add(label[x-1][y]);
+        if(left && top && label[x-1][y-1] != 0)
+            white.add(label[x-1][y-1]);
+        return white;
+    }
+
+//    private List<Point> getWhiteNeighbor(Bitmap bitmap, int x, int y){
+//        List<Point> white = new ArrayList<Point>();
+//        if(isWhite(bitmap.getPixel(x,y-1)))
+//            white.add(new Point(x,y-1));
+//        if(isWhite(bitmap.getPixel(x+1,y-1)))
+//            white.add(new Point(x+1,y-1));
+//        if(isWhite(bitmap.getPixel(x+1,y)))
+//            white.add(new Point(x+1,y));
+//        if(isWhite(bitmap.getPixel(x+1,y+1)))
+//            white.add(new Point(x+1,y+1));
+//        if(isWhite(bitmap.getPixel(x,y+1)))
+//            white.add(new Point(x,y+1));
+//        if(isWhite(bitmap.getPixel(x-1,y-1)))
+//            white.add(new Point(x-1,y+1));
+//        if(isWhite(bitmap.getPixel(x-1,y)))
+//            white.add(new Point(x-1,y));
+//        if(isWhite(bitmap.getPixel(x-1,y-1)))
+//            white.add(new Point(x-1,y-1));
+//        return white;
+//    }
+
+    private boolean isWhite(int pixel){
+        return (Color.red(pixel) == 255 && Color.blue(pixel) == 255 && Color.green(pixel) == 255);
+    }
+
     private int sumRegion(int[] borderPoint, Bitmap bitmap) {
         int sum = 0;
         for (int j = borderPoint[0]; j <= borderPoint[3]; j++) {
@@ -331,29 +467,29 @@ public class MainActivity extends AppCompatActivity {
         return  sum;
     }
 
-    private int[] getmouthBox(Bitmap bitmap, int[] faceBox) {
-        int minWidth = faceBox[0];
-        int maxWidth = faceBox[3] + 1 ;
-        int minHeight = faceBox[2] + 1 ;
-        int maxHeight = 0;
-        for (int j = 0; j < bitmap.getWidth(); j++) {
-            for (int i = 0; i < bitmap.getHeight(); i++) {
-                int pixel = bitmap.getPixel(j,i);
-                int grayColor = Color.red(pixel) + Color.green(pixel) + Color.blue(pixel);
-                grayColor /= 3;
-                if (grayColor == 255) {
-                    if (j > maxWidth) maxWidth = j;
-                    if (j < minWidth) minWidth = j;
-                    if (i > maxHeight) maxHeight = i;
-                    if (j < minHeight) minHeight = i;
-
-                }
-            }
-        }
-        int[] borderPoint = new int[]{minWidth,minHeight,maxHeight,maxWidth};
-        Log.d("X", ""+borderPoint[0]+" "+borderPoint[1]+" "+borderPoint[2]+ " "+ borderPoint[3]);
-        return borderPoint;
-    }
+//    private int[] getmouthBox(Bitmap bitmap, int[] faceBox) {
+//        int minWidth = faceBox[0];
+//        int maxWidth = faceBox[3] + 1 ;
+//        int minHeight = faceBox[2] + 1 ;
+//        int maxHeight = 0;
+//        for (int j = 0; j < bitmap.getWidth(); j++) {
+//            for (int i = 0; i < bitmap.getHeight(); i++) {
+//                int pixel = bitmap.getPixel(j,i);
+//                int grayColor = Color.red(pixel) + Color.green(pixel) + Color.blue(pixel);
+//                grayColor /= 3;
+//                if (grayColor == 255) {
+//                    if (j > maxWidth) maxWidth = j;
+//                    if (j < minWidth) minWidth = j;
+//                    if (i > maxHeight) maxHeight = i;
+//                    if (j < minHeight) minHeight = i;
+//
+//                }
+//            }
+//        }
+//        int[] borderPoint = new int[]{minWidth,minHeight,maxHeight,maxWidth};
+//        Log.d("X", ""+borderPoint[0]+" "+borderPoint[1]+" "+borderPoint[2]+ " "+ borderPoint[3]);
+//        return borderPoint;
+//    }
 
     private boolean isSkinColor(int pixel) {
         int[] YCbCr = getYCbCr(pixel);
