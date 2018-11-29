@@ -33,6 +33,8 @@ public class MainActivity extends AppCompatActivity {
     private EditText[][] matrixView = new EditText[3][3];
     private Integer REQUEST_CAMERA = 1, SELECT_FILE = 0;
     private Bitmap bitmap,secondBitmap;
+    private int[][] beforeMinkowski;
+    private int[][] afterMinkowski;
     private double[][] blur = {{0.0625, 0.125, 0.0625},
             {0.125, 0.25, 0.125},
             {0.0625, 0.125, 0.0625}};
@@ -98,6 +100,9 @@ public class MainActivity extends AppCompatActivity {
             {0, 0, 0},
             {0, 0, 0}};
 
+    private int[][] operand = {{1, 1, 1},
+            {1, 1, 1},
+            {1, 1, 1}};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -199,6 +204,49 @@ public class MainActivity extends AppCompatActivity {
         }
 
         return Bitmap.createScaledBitmap(bitmap, resizedWidth, resizedHeight, true);
+    }
+
+    private void dilate(int _x, int _y, int[][] operand) {
+        int mid = operand.length / 2;
+        for(int i = 0; i < operand.length; i++) {
+            int x = _x + i - mid;
+            for(int j = 0; j < operand.length; j++) {
+                int y = _y + j - mid;
+                if(x >= 0 && y >= 0 && x <= beforeMinkowski.length && y <= beforeMinkowski[0].length) {
+                    afterMinkowski[x][y] = operand[i][j];
+                }
+            }
+        }
+    }
+
+    private Bitmap dilation(Bitmap input, int[][] operand) {
+        Bitmap output = Bitmap.createBitmap(input.getWidth(), input.getHeight(), Bitmap.Config.ARGB_8888);
+        final int height = input.getHeight();
+        final int width = input.getWidth();
+
+        beforeMinkowski = new int[width][height];
+        afterMinkowski = new int[width][height];
+        for(int i = 0; i < width; i++) {
+            for(int j = 0; j < height; j++) {
+                beforeMinkowski[i][j] = input.getPixel(i, j);
+            }
+        }
+        for(int i = 0; i < width; i++) {
+            for(int j = 0; j < height; j++) {
+                if(beforeMinkowski[i][j] == 1) {
+                    dilate(i, j, operand);
+                }
+            }
+        }
+        for(int i = 0; i < width; i++) {
+            for(int j = 0; j < height; j++) {
+                output.setPixel(i, j, afterMinkowski[i][j]);
+                Log.d("OUTPIXEL: ", Integer.toString(afterMinkowski[i][j]));
+                //Log.d("PIXEL: ", Integer.toString(beforeMinkowski[i][j]));
+            }
+        }
+
+        return output;
     }
 
     Bitmap getFaceFromBitmap(Bitmap bitmap) {
@@ -335,6 +383,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void SelectFeature() {
         final CharSequence[] items ={"Face Detect",
+                "Dilate",
                 "Identity",
                 "Blur",
                 "Gaussian blur 5 x 5",
@@ -360,6 +409,9 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(DialogInterface dialog, int which) {
                 if(items[which].equals("Face Detect")) {
                     imageViewAfter.setImageBitmap(getFaceFromBitmap(bitmap));
+                    imageViewAfter.setVisibility(View.VISIBLE);
+                } else if(items[which].equals("Dilate")) {
+                    imageViewAfter.setImageBitmap(dilation(getFaceFromBitmap(bitmap), operand));
                     imageViewAfter.setVisibility(View.VISIBLE);
                 } else if(items[which].equals("Identity")) {
                     convoluteImage(bitmap,secondBitmap,identity);
