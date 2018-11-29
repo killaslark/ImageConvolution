@@ -36,7 +36,7 @@ public class MainActivity extends AppCompatActivity {
     private ImageView imageViewBefore,imageViewAfter;
     private EditText[][] matrixView = new EditText[3][3];
     private Integer REQUEST_CAMERA = 1, SELECT_FILE = 0;
-    private Bitmap bitmap,secondBitmap;
+    private Bitmap bitmap,secondBitmap, bufferBitmap;
     private int[][] beforeMinkowski;
     private int[][] afterMinkowski;
     private int labelCount = 0;
@@ -108,14 +108,31 @@ public class MainActivity extends AppCompatActivity {
     // Minkowski Kernel
     private int[][][] operand = {
             {{1, 1, 1},
-            {1, 1, 1},
-            {1, 1, 1}},
+             {1, 1, 1},
+             {1, 1, 1}},
+
+            {{0, 1, 0},
+             {1, 1, 1},
+             {0, 1, 0}},
 
             {{1, 1, 1, 1, 1},
-            {1, 1, 1, 1, 1},
-            {1, 1, 1, 1, 1},
-            {1, 1, 1, 1, 1},
-            {1, 1, 1, 1, 1}}};
+             {1, 1, 1, 1, 1},
+             {1, 1, 1, 1, 1},
+             {1, 1, 1, 1, 1},
+             {1, 1, 1, 1, 1}},
+
+            {{0, 0, 1, 0, 0},
+             {0, 1, 1, 1, 0},
+             {1, 1, 1, 1, 1},
+             {0, 1, 1, 1, 1},
+             {0, 0, 1, 1, 0}},
+
+            {{0, 0, 1, 1, 0, 0},
+             {0, 1, 1, 1, 1, 0},
+             {1, 1, 1, 1, 1, 1},
+             {1, 1, 1, 1, 1, 1},
+             {0, 1, 1, 1, 1, 0},
+             {0, 0, 1, 1, 0, 0}}};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -168,6 +185,7 @@ public class MainActivity extends AppCompatActivity {
                 bitmap = (Bitmap) bundle.get("data");
                 secondBitmap = bitmap;
                 imageViewBefore.setImageBitmap(bitmap);
+                bufferBitmap = null;
 
             } else if (requestCode == SELECT_FILE) {
                 Uri selectedImageUri = data.getData();
@@ -177,6 +195,7 @@ public class MainActivity extends AppCompatActivity {
                     bitmap = BitmapFactory.decodeStream(inputStream);
                     secondBitmap = bitmap;
                     imageViewBefore.setImageBitmap(bitmap);
+                    bufferBitmap = null;
 
                 } catch (FileNotFoundException e) {
                     e.printStackTrace();
@@ -219,6 +238,61 @@ public class MainActivity extends AppCompatActivity {
         return Bitmap.createScaledBitmap(bitmap, resizedWidth, resizedHeight, true);
     }
 
+    private void erode(int _x, int _y, int size) {
+        boolean fit = true;
+        int mid = operand.length / 2;
+        Log.d("MID is: ", Integer.toString(mid));
+        for(int i = 0; i < operand[size].length; i++) {
+            int x = _x + i - mid;
+            for(int j = 0; j < operand[size].length; j++) {
+                int y = _y + j - mid;
+                if(x >= 0 && y >= 0 && x < beforeMinkowski.length && y < beforeMinkowski[0].length) {
+                    if (operand[size][i][j] == 1) {
+                        if (beforeMinkowski[x][y] != (operand[size][i][j] == 1 ? Color.WHITE : Color.BLACK))
+                            fit = false;
+                    }
+                } else {
+                    fit = false;
+                }
+                if (!fit) break;
+            }
+            if (!fit) break;
+        }
+        afterMinkowski[_x][_y] = fit ? Color.WHITE : Color.BLACK;
+    }
+
+    private Bitmap erosion(Bitmap input, int size) {
+        Bitmap output = Bitmap.createBitmap(input.getWidth(), input.getHeight(), Bitmap.Config.ARGB_8888);
+        final int height = input.getHeight();
+        final int width = input.getWidth();
+
+        beforeMinkowski = new int[width][height];
+        afterMinkowski = new int[width][height];
+        for(int i = 0; i < width; i++) {
+            for(int j = 0; j < height; j++) {
+                beforeMinkowski[i][j] = input.getPixel(i, j);
+                Log.d("Minkowski Info: ",Integer.toString(beforeMinkowski[i][j]));
+            }
+        }
+        for(int i = 0; i < width; i++) {
+            for(int j = 0; j < height; j++) {
+                if(beforeMinkowski[i][j] == Color.WHITE) {
+                    erode(i, j, size);
+                } else {
+                    afterMinkowski[i][j] = beforeMinkowski[i][j];
+                }
+            }
+        }
+        for(int i = 0; i < width; i++) {
+            for(int j = 0; j < height; j++) {
+                output.setPixel(i, j, afterMinkowski[i][j]);
+                //Log.d("OUTPIXEL: ", Integer.toString(afterMinkowski[i][j]));
+                //Log.d("PIXEL: ", Integer.toString(beforeMinkowski[i][j]));
+            }
+        }
+        return output;
+    }
+
     private void dilate(int _x, int _y, int size) {
         int mid = operand.length / 2;
         Log.d("MID is: ", Integer.toString(mid));
@@ -227,7 +301,9 @@ public class MainActivity extends AppCompatActivity {
             for(int j = 0; j < operand[size].length; j++) {
                 int y = _y + j - mid;
                 if(x >= 0 && y >= 0 && x < beforeMinkowski.length && y < beforeMinkowski[0].length) {
-                    afterMinkowski[x][y] = operand[size][i][j] == 1 ? Color.WHITE : Color.BLACK;
+                    if(operand[size][i][j] == 1) {
+                        afterMinkowski[x][y] = operand[size][i][j] == 1 ? Color.WHITE : Color.BLACK;
+                    }
                     //Log.d("X Y is: ", Integer.toString(x) + " " + Integer.toString(y));
                     //Log.d("I J is: ", Integer.toString(i) + " " + Integer.toString(j));
                 }
@@ -557,6 +633,7 @@ public class MainActivity extends AppCompatActivity {
     private void SelectFeature() {
         final CharSequence[] items ={"Face Detect",
                 "Preprocess Skin Color",
+                "Erode",
                 "Dilate",
                 "Identity",
                 "Blur",
@@ -587,9 +664,25 @@ public class MainActivity extends AppCompatActivity {
                 } else if(items[which].equals("Preprocess Skin Color")) {
                     imageViewAfter.setImageBitmap(preprocessSkinColor(bitmap));
                     imageViewAfter.setVisibility(View.VISIBLE);
+                } else if(items[which].equals("Erode")) {
+                    if (bufferBitmap == null) {
+                        imageViewBefore.setImageBitmap(preprocessSkinColor(bitmap));
+                        bufferBitmap = erosion(preprocessSkinColor(bitmap), 3);
+                    } else {
+                        imageViewBefore.setImageBitmap(bufferBitmap);
+                        bufferBitmap = erosion(bufferBitmap, 3);
+                    }
+                    imageViewAfter.setImageBitmap(bufferBitmap);
+                    imageViewAfter.setVisibility(View.VISIBLE);
                 } else if(items[which].equals("Dilate")) {
-                    imageViewBefore.setImageBitmap(preprocessSkinColor(bitmap));
-                    imageViewAfter.setImageBitmap(dilation(preprocessSkinColor(bitmap), 1));
+                    if (bufferBitmap == null) {
+                        imageViewBefore.setImageBitmap(preprocessSkinColor(bitmap));
+                        bufferBitmap = dilation(preprocessSkinColor(bitmap), 3);
+                    } else {
+                        imageViewBefore.setImageBitmap(bufferBitmap);
+                        bufferBitmap = dilation(bufferBitmap, 3);
+                    }
+                    imageViewAfter.setImageBitmap(bufferBitmap);
                     imageViewAfter.setVisibility(View.VISIBLE);
                 } else if(items[which].equals("Identity")) {
                     convoluteImage(bitmap,secondBitmap,identity);
