@@ -57,6 +57,7 @@ public class Box {
     }
 
     public Bitmap drawBox(Bitmap bitmap, int offsetX, int offsetY, int color){
+        Bitmap tempBitmap = bitmap.copy(Bitmap.Config.ARGB_8888,true);
         Log.d("Position", Float.toString(left));
         int left = offsetX+(int)this.left;
         int right = offsetX+(int)this.right;
@@ -66,12 +67,12 @@ public class Box {
             for (int i = left; i <= right; i++) {
                 for (int j = top; j <= bottom; j++) {
                     if (i == left || i == right || j == top || j == bottom) {
-                        bitmap.setPixel((int) i, (int) j, color);
+                        tempBitmap.setPixel((int) i, (int) j, color);
                     }
                 }
             }
         }
-        return bitmap;
+        return tempBitmap;
     }
 
     public boolean valid(float size){
