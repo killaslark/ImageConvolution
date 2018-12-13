@@ -22,7 +22,9 @@ import android.widget.Toast;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.sql.Array;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -403,20 +405,6 @@ public class MainActivity extends AppCompatActivity {
             if(newBoundingBox.get(i).valid(50))
                 newBitmap = newBoundingBox.get(i).drawBox(newBitmap, Color.RED);
         }
-//        Parallel.For(0, height, new LoopBody<Integer>() {
-//            @Override
-//            public void run(Integer y) {
-//                int[] resultPixels = new int[width];
-//                processedBitmap.getPixels(resultPixels, 0, width, 0, y, width, 1);
-//
-//                for (int x = 0; x < width; ++x) {
-//
-//                    resultPixels[x] = (x == faceBox[3] || x == faceBox[0] || y == faceBox[1] || y == faceBox[2]) ? Color.RED : resultPixels[x];
-//                }
-//                processedBitmap.setPixels(resultPixels, 0, width, 0, y, width, 1);
-//            }
-//        });
-
         return newBitmap;
     }
 
@@ -426,20 +414,31 @@ public class MainActivity extends AppCompatActivity {
         for(int i = 0; i < newBoundingBox.size();i++) {
             int topEye = (int)newBoundingBox.get(i).top + Math.round((newBoundingBox.get(i).bottom-newBoundingBox.get(i).top)*0.25f);
             int bottomEye = (int)newBoundingBox.get(i).top + Math.round((newBoundingBox.get(i).bottom-newBoundingBox.get(i).top)*0.5f);
-            if (newBoundingBox.get(i).valid(50)) {
-                int[][] label = getLabel(bufferBitmap, topEye, bottomEye, (int) newBoundingBox.get(i).left, (int) newBoundingBox.get(i).right, Color.BLACK);
+//            if (newBoundingBox.get(i).valid(50)) {
+                int[][] label = getLabel(bufferBitmap, (int) newBoundingBox.get(i).top, (int) newBoundingBox.get(i).bottom, (int) newBoundingBox.get(i).left, (int) newBoundingBox.get(i).right, Color.BLACK);
                 eyeBox.add(getRegion(label));
                 idx.add(i);
-            }
+//            }
         }
+
         for(int i = 0; i < eyeBox.size();i++){
             int topEye = (int)newBoundingBox.get(idx.get(i)).top + Math.round((newBoundingBox.get(idx.get(i)).bottom-newBoundingBox.get(idx.get(i)).top)*0.25f);
             int bottomEye = (int)newBoundingBox.get(idx.get(i)).top + Math.round((newBoundingBox.get(idx.get(i)).bottom-newBoundingBox.get(idx.get(i)).top)*0.5f);
-            Box box = new Box(topEye,bottomEye,newBoundingBox.get(idx.get(i)).left, newBoundingBox.get(idx.get(i)).right);
-            List<Box> validEye = removeInsideBox(eyeBox.get(i));
-            validEye = getValidEye(validEye, box.getSize());
+            Box box = new Box((int)newBoundingBox.get(idx.get(i)).top,(int)newBoundingBox.get(idx.get(i)).bottom,newBoundingBox.get(idx.get(i)).left, newBoundingBox.get(idx.get(i)).right);
+//            List<Box> validEye = removeInsideBox(eyeBox.get(i));
+            List<Box> validEye = getFaceComponent(Arrays.asList(eyeBox.get(i)), newBoundingBox.get(i));
             for (int j = 0; j < validEye.size();j++){
-                int y = (int)newBoundingBox.get(idx.get(i)).top + Math.round((newBoundingBox.get(idx.get(i)).bottom-newBoundingBox.get(idx.get(i)).top)*0.25f);
+                int y = (int)newBoundingBox.get(idx.get(i)).top;
+                int x = (int)newBoundingBox.get(idx.get(i)).left;
+//                Log.d("SIZEXYVALIDEYE", Float.toString(validEye.get(i).left) + " " + Float.toString(validEye.get(i).top));
+//                Log.d("SIZEVALIDEYE", Float.toString(validEye.get(j).getSize()));
+                bitmap = validEye.get(j).drawBox(bitmap, x, y , Color.BLUE);
+            }
+
+            validEye = getValidEye(validEye, box.getSize());
+
+            for (int j = 0; j < validEye.size();j++){
+                int y = (int)newBoundingBox.get(idx.get(i)).top;
                 int x = (int)newBoundingBox.get(idx.get(i)).left;
 //                Log.d("SIZEXYVALIDEYE", Float.toString(validEye.get(i).left) + " " + Float.toString(validEye.get(i).top));
 //                Log.d("SIZEVALIDEYE", Float.toString(validEye.get(j).getSize()));
@@ -459,7 +458,7 @@ public class MainActivity extends AppCompatActivity {
             float height = eyeBox.get(i).bottom - eyeBox.get(i).top;
             Log.d("WIDTHHEIGHTSIZE", Float.toString(width) + " " + Float.toString(height));
             Log.d("BOXSIZE", "IN:" + Float.toString(eyeBox.get(i).getSize()) + " OUT:" + Float.toString(outerBoxSize));
-            if(width > height && eyeBox.get(i).getSize() < 0.2f*outerBoxSize && eyeBox.get(i).valid(20)){
+            if(eyeBox.get(i).valid(15)){
                 Log.d("BOXSIZEPASS", "IN:" + Float.toString(eyeBox.get(i).getSize()) + " OUT:" + Float.toString(outerBoxSize));
                 box.add(eyeBox.get(i));
             }
@@ -493,8 +492,31 @@ public class MainActivity extends AppCompatActivity {
         return finalBox;
     }
 
+    private List<Box> getFaceComponent(List<Box> faceComponentCandidate, Box faceBox){
+        List<Box> box = new ArrayList<>();
+        List<Box> finalBox = new ArrayList<>();
+        for(int i = 0;i < faceComponentCandidate.size();i++){
+
+            float width = Math.abs(faceBox.left - faceBox.right);
+            float height = Math.abs(faceBox.bottom - faceBox.top);
+
+            //Kalau kotak komponen Berada di sisi wajah
+            if ( Math.abs(faceBox.right - (faceBox.left + faceComponentCandidate.get(i).right))  < (0.05*width)   ||
+                Math.abs(faceBox.bottom- (faceBox.top + faceComponentCandidate.get(i).bottom))  < (0.05*height) ||
+                Math.abs (faceBox.top - (faceBox.top +faceComponentCandidate.get(i).top)) < (0.05*height)  ||
+                Math.abs(faceBox.left -(faceBox.left+ faceComponentCandidate.get(i).left)) < (0.05*width)) {
+
+            } else {
+                finalBox.add(faceComponentCandidate.get(i));
+            }
+        }
+        return finalBox;
+    }
+
+
+
     private float boxHeightDistance(Box box1, Box box2){
-        return Math.abs(box1.top+((box1.bottom-box1.top)/2f) - box2.top+((box2.bottom-box2.top)/2f));
+        return Math.abs(box1.top - box2.top);
     }
 
     private List<Box> removeInsideBox(Box[] box){
@@ -584,6 +606,7 @@ public class MainActivity extends AppCompatActivity {
         for(int i = 0;i < boundingBox.length;i++){
             boundingBox[i] = new Box();
         }
+        Log.d("BOXSIZE", "" + boundingBox.length);
         for(int i = 0; i < label.length;i++){
             for(int j = 0; j < label[i].length;j++) {
                 if(label[i][j] != 0){
@@ -829,7 +852,7 @@ public class MainActivity extends AppCompatActivity {
                     imageViewAfter.setImageBitmap(bufferBitmap);
                     imageViewAfter.setVisibility(View.VISIBLE);
                 } else if(items[which].equals("Get Eye")){
-                    drawBitmap = getEye(bitmap);
+                    drawBitmap = getEye(bufferBitmap);
                     imageViewAfter.setImageBitmap(drawBitmap);
                 } else if(items[which].equals("Identity")) {
                     convoluteImage(bitmap,secondBitmap,identity);
