@@ -28,15 +28,18 @@ import java.util.List;
 import java.util.Set;
 import java.util.Vector;
 
+import static java.lang.Math.floor;
+import static java.lang.Math.min;
 import static java.lang.Math.sqrt;
 
 public class MainActivity extends AppCompatActivity {
 
     private ArrayList<double[][]> selectedKernel = new ArrayList<>();
+    private List<Box> newBoundingBox = new ArrayList<>();
     private ImageView imageViewBefore,imageViewAfter;
     private EditText[][] matrixView = new EditText[3][3];
     private Integer REQUEST_CAMERA = 1, SELECT_FILE = 0;
-    private Bitmap bitmap,secondBitmap, bufferBitmap;
+    private Bitmap bitmap,secondBitmap, bufferBitmap, drawBitmap;
     private int[][] beforeMinkowski;
     private int[][] afterMinkowski;
     private int labelCount = 0;
@@ -389,13 +392,16 @@ public class MainActivity extends AppCompatActivity {
         });
 
         //final int[] faceBox = getFaceBox(processedBitmap);
-        int[][] label = getLabel(processedBitmap);
+        int[][] label = getLabel(bufferBitmap, 0, bitmap.getHeight(), 0, bitmap.getWidth(), Color.WHITE);
         Box[] boundingBox = getRegion(label);
+        newBoundingBox = getValidBoxRatio(boundingBox);
+        newBoundingBox = removeInsideBox(newBoundingBox);
+
         //final int[] mouthBox = getmouthBox(processedBitmap,faceBox);
         Bitmap newBitmap = processedBitmap;
-        for(int i = 0; i < boundingBox.length;i++){
-            if(boundingBox[i].valid(50))
-                newBitmap = boundingBox[i].drawBox(newBitmap);
+        for(int i = 0; i < newBoundingBox.size();i++){
+            if(newBoundingBox.get(i).valid(50))
+                newBitmap = newBoundingBox.get(i).drawBox(newBitmap, Color.RED);
         }
 //        Parallel.For(0, height, new LoopBody<Integer>() {
 //            @Override
@@ -412,6 +418,123 @@ public class MainActivity extends AppCompatActivity {
 //        });
 
         return newBitmap;
+    }
+
+    private Bitmap getEye(Bitmap bitmap){
+        List<Box[]> eyeBox = new ArrayList<>();
+        List<Integer> idx = new ArrayList<>();
+        for(int i = 0; i < newBoundingBox.size();i++) {
+            int topEye = (int)newBoundingBox.get(i).top + Math.round((newBoundingBox.get(i).bottom-newBoundingBox.get(i).top)*0.25f);
+            int bottomEye = (int)newBoundingBox.get(i).top + Math.round((newBoundingBox.get(i).bottom-newBoundingBox.get(i).top)*0.5f);
+            if (newBoundingBox.get(i).valid(50)) {
+                int[][] label = getLabel(bufferBitmap, topEye, bottomEye, (int) newBoundingBox.get(i).left, (int) newBoundingBox.get(i).right, Color.BLACK);
+                eyeBox.add(getRegion(label));
+                idx.add(i);
+            }
+        }
+        for(int i = 0; i < eyeBox.size();i++){
+            int topEye = (int)newBoundingBox.get(idx.get(i)).top + Math.round((newBoundingBox.get(idx.get(i)).bottom-newBoundingBox.get(idx.get(i)).top)*0.25f);
+            int bottomEye = (int)newBoundingBox.get(idx.get(i)).top + Math.round((newBoundingBox.get(idx.get(i)).bottom-newBoundingBox.get(idx.get(i)).top)*0.5f);
+            Box box = new Box(topEye,bottomEye,newBoundingBox.get(idx.get(i)).left, newBoundingBox.get(idx.get(i)).right);
+            List<Box> validEye = removeInsideBox(eyeBox.get(i));
+            validEye = getValidEye(validEye, box.getSize());
+            for (int j = 0; j < validEye.size();j++){
+                int y = (int)newBoundingBox.get(idx.get(i)).top + Math.round((newBoundingBox.get(idx.get(i)).bottom-newBoundingBox.get(idx.get(i)).top)*0.25f);
+                int x = (int)newBoundingBox.get(idx.get(i)).left;
+//                Log.d("SIZEXYVALIDEYE", Float.toString(validEye.get(i).left) + " " + Float.toString(validEye.get(i).top));
+//                Log.d("SIZEVALIDEYE", Float.toString(validEye.get(j).getSize()));
+                bitmap = validEye.get(j).drawBox(bitmap, x, y , Color.GREEN);
+            }
+            if(validEye.size() == 2)
+                bitmap = newBoundingBox.get(idx.get(i)).drawBox(bitmap, 0, 0, Color.RED);
+        }
+        return bitmap;
+    }
+
+    private List<Box> getValidEye(List<Box> eyeBox, float outerBoxSize){
+        List<Box> box = new ArrayList<>();
+        List<Box> finalBox = new ArrayList<>();
+        for(int i = 0;i < eyeBox.size();i++){
+            float width = eyeBox.get(i).right - eyeBox.get(i).left;
+            float height = eyeBox.get(i).bottom - eyeBox.get(i).top;
+            Log.d("WIDTHHEIGHTSIZE", Float.toString(width) + " " + Float.toString(height));
+            Log.d("BOXSIZE", "IN:" + Float.toString(eyeBox.get(i).getSize()) + " OUT:" + Float.toString(outerBoxSize));
+            if(width > height && eyeBox.get(i).getSize() < 0.2f*outerBoxSize && eyeBox.get(i).valid(20)){
+                Log.d("BOXSIZEPASS", "IN:" + Float.toString(eyeBox.get(i).getSize()) + " OUT:" + Float.toString(outerBoxSize));
+                box.add(eyeBox.get(i));
+            }
+        }
+        Log.d("BOXSIZES", Integer.toString(box.size()));
+        if (box.size() > 2) {
+            int firstIdx = 0;
+            int secondIdx = 0;
+            float minDistance = -1;
+            for(int i = 0; i < box.size();i++){
+                for(int j = i+1; j < box.size();j++){
+                    if(i != j){
+                        Log.d("DIS", Float.toString(box.get(i).top) + " " + Float.toString(box.get(j).top));
+                        Log.d("SIZEMINDIS", Float.toString(boxHeightDistance(box.get(i),box.get(j))));
+                        if(boxHeightDistance(box.get(i),box.get(j)) < minDistance || minDistance == -1){
+                            minDistance = boxHeightDistance(box.get(i),box.get(j));
+                            firstIdx = i;
+                            secondIdx = j;
+                        }
+                    }
+                }
+            }
+            Log.d("DISFINAL", Float.toString(box.get(firstIdx).top) + " " + Float.toString(box.get(secondIdx).top));
+            finalBox.add(box.get(firstIdx));
+            finalBox.add(box.get(secondIdx));
+        } else if(box.size() == 2) {
+            finalBox.add(box.get(0));
+            finalBox.add(box.get(1));
+        }
+        Log.d("SIZEFINAL", Integer.toString(finalBox.size()));
+        return finalBox;
+    }
+
+    private float boxHeightDistance(Box box1, Box box2){
+        return Math.abs(box1.top+((box1.bottom-box1.top)/2f) - box2.top+((box2.bottom-box2.top)/2f));
+    }
+
+    private List<Box> removeInsideBox(Box[] box){
+        List<Integer> idxToRemove = new ArrayList<>();
+        List<Box> boxes = new ArrayList<>();
+        for(int i = 0; i < box.length;i++){
+            for(int j = 0;j < box.length;j++){
+                if(i != j && box2Insidebox1(box[i],box[j])){
+                    idxToRemove.add(j);
+                }
+            }
+        }
+        for(int i=0;i<box.length;i++){
+            if(!idxToRemove.contains(i)){
+                boxes.add(box[i]);
+            }
+        }
+        return boxes;
+    }
+
+    private List<Box> removeInsideBox(List<Box> box){
+        List<Integer> idxToRemove = new ArrayList<>();
+        List<Box> boxes = new ArrayList<>();
+        for(int i = 0; i < box.size();i++){
+            for(int j = 0;j < box.size();j++){
+                if(i != j && box2Insidebox1(box.get(i),box.get(j))){
+                    idxToRemove.add(j);
+                }
+            }
+        }
+        for(int i=0;i<box.size();i++){
+            if(!idxToRemove.contains(i)){
+                boxes.add(box.get(i));
+            }
+        }
+        return boxes;
+    }
+
+    private boolean box2Insidebox1(Box box1, Box box2){
+        return (box2.top >= box1.top && box2.bottom <= box1.bottom && box2.left >= box1.left && box2.right <= box1.right);
     }
 
     private int[] getFaceBox(Bitmap bitmap) {
@@ -437,6 +560,19 @@ public class MainActivity extends AppCompatActivity {
         int[] borderPoint = new int[]{minWidth,minHeight,maxHeight,maxWidth};
         Log.d("X", ""+borderPoint[0]+" "+borderPoint[1]+" "+borderPoint[2]+ " "+ borderPoint[3]);
         return borderPoint;
+    }
+
+    private List<Box> getValidBoxRatio(Box[] box){
+        List<Box> newBoundingBox = new ArrayList<>();
+        for(int i = 0;i < box.length;i++){
+            float height = box[i].bottom - box[i].top;
+            float width = box[i].right - box[i].left;
+            Log.d("RATIO", Float.toString(height/width));
+            if(height/width >= 0.8f){
+                newBoundingBox.add(box[i]);
+            }
+        }
+        return newBoundingBox;
     }
 
     private Box[] getRegion(int[][] label){
@@ -465,15 +601,17 @@ public class MainActivity extends AppCompatActivity {
         return boundingBox;
     }
 
-    private int[][] getLabel(Bitmap bitmap){
+    private int[][] getLabel(Bitmap bitmap, int top, int bottom, int left, int right, int color){
         ArrayList<ArrayList<Integer>> linked = new ArrayList<>();
         //int label = 0;
-        int[][] label = new int[bitmap.getHeight()][bitmap.getWidth()];
+        int heightSize = bottom-top;
+        int widthSize = right-left;
+        int[][] label = new int[heightSize][widthSize];
         int currentLabel = 1;
-        for(int i = 0; i < bitmap.getHeight();i++){
-            for(int j = 0; j < bitmap.getWidth();j++){
-                if(isWhite(bitmap.getPixel(j,i))){
-                    ArrayList<Integer> neighbors = getWhiteNeighbor(label, i, j);
+        for(int i = 0; i < heightSize;i++){
+            for(int j = 0; j < widthSize;j++){
+                if(isColor(bitmap.getPixel(left+j,top+i), color)){
+                    ArrayList<Integer> neighbors = getNeighbor(label, i, j);
                     if(neighbors.size() == 0){
                         label[i][j] = currentLabel;
                         linked.add(new ArrayList<Integer>());
@@ -489,9 +627,9 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         int newLabelCount = 0;
-        for(int i = 0; i < bitmap.getHeight();i++) {
-            for (int j = 0; j < bitmap.getWidth(); j++) {
-                if(isWhite(bitmap.getPixel(j,i))){
+        for(int i = 0; i < heightSize;i++) {
+            for (int j = 0; j < widthSize; j++) {
+                if(isColor(bitmap.getPixel(left+j,top+i),color)){
                     ArrayList<Integer> EquivalentLabels = linked.get(label[i][j]-1);
                     label[i][j] = minLabel(EquivalentLabels);
                     if(newLabelCount < label[i][j]){
@@ -514,7 +652,7 @@ public class MainActivity extends AppCompatActivity {
         return min;
     }
 
-    private ArrayList<Integer> getWhiteNeighbor(int[][] label, int x, int y){
+    private ArrayList<Integer> getNeighbor(int[][] label, int x, int y){
         ArrayList<Integer> white = new ArrayList<Integer>();
         boolean top = y-1 >= 0;
         boolean right = x+1 < label.length;
@@ -560,8 +698,8 @@ public class MainActivity extends AppCompatActivity {
 //        return white;
 //    }
 
-    private boolean isWhite(int pixel){
-        return (Color.red(pixel) == 255 && Color.blue(pixel) == 255 && Color.green(pixel) == 255);
+    private boolean isColor(int pixel, int color){
+        return (pixel == color);
     }
 
     private int sumRegion(int[] borderPoint, Bitmap bitmap) {
@@ -635,6 +773,7 @@ public class MainActivity extends AppCompatActivity {
                 "Preprocess Skin Color",
                 "Erode",
                 "Dilate",
+                "Get Eye",
                 "Identity",
                 "Blur",
                 "Gaussian blur 5 x 5",
@@ -659,7 +798,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 if(items[which].equals("Face Detect")) {
-                    imageViewAfter.setImageBitmap(getFaceFromBitmap(bitmap));
+                    drawBitmap = getFaceFromBitmap(bitmap);
+                    imageViewAfter.setImageBitmap(drawBitmap);
                     imageViewAfter.setVisibility(View.VISIBLE);
                 } else if(items[which].equals("Preprocess Skin Color")) {
                     imageViewAfter.setImageBitmap(preprocessSkinColor(bitmap));
@@ -684,6 +824,9 @@ public class MainActivity extends AppCompatActivity {
                     }
                     imageViewAfter.setImageBitmap(bufferBitmap);
                     imageViewAfter.setVisibility(View.VISIBLE);
+                } else if(items[which].equals("Get Eye")){
+                    drawBitmap = getEye(bitmap);
+                    imageViewAfter.setImageBitmap(drawBitmap);
                 } else if(items[which].equals("Identity")) {
                     convoluteImage(bitmap,secondBitmap,identity);
                 } else if (items[which].equals("Blur")) {
