@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.Point;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -35,6 +36,9 @@ import static java.lang.Math.min;
 import static java.lang.Math.sqrt;
 
 public class MainActivity extends AppCompatActivity {
+
+    private List<ControlPoint> cp1 = new ArrayList<>();
+    private List<ControlPoint> cp2 = new ArrayList<>();
 
     private ArrayList<double[][]> selectedKernel = new ArrayList<>();
     private List<Box> newBoundingBox = new ArrayList<>();
@@ -209,6 +213,81 @@ public class MainActivity extends AppCompatActivity {
                 imageViewBefore.setImageURI(selectedImageUri);
             }
         }
+    }
+
+    private void testControlPoint(){
+        Point[] p = new Point[8];
+        p[0] = new Point(1, 2);
+        p[1] = new Point(1, 8);
+        p[2] = new Point(1, 2);
+        p[3] = new Point(1, 2);
+        p[4] = new Point(1, 2);
+        p[5] = new Point(1, 2);
+        p[6] = new Point(3, 2);
+        p[7] = new Point(1, 2);
+        cp1.add(new ControlPoint(p));
+        Point[] q = new Point[8];
+        q[0] = new Point(1, 2);
+        q[1] = new Point(2, 2);
+        q[2] = new Point(1, 2);
+        q[3] = new Point(1, 2);
+        q[4] = new Point(2, 1);
+        q[5] = new Point(1, 2);
+        q[6] = new Point(4, 2);
+        q[7] = new Point(1, 2);
+        cp1.add(new ControlPoint(q));
+        Point[] r = new Point[8];
+        r[0] = new Point(1, 2);
+        r[1] = new Point(1, 2);
+        r[2] = new Point(1, 2);
+        r[3] = new Point(1, 2);
+        r[4] = new Point(1, 2);
+        r[5] = new Point(1, 2);
+        r[6] = new Point(1, 2);
+        r[7] = new Point(1, 2);
+        cp1.add(new ControlPoint(r));
+
+        Point[] s = new Point[8];
+        s[0] = new Point(1, 2);
+        s[1] = new Point(1, 2);
+        s[2] = new Point(1, 2);
+        s[3] = new Point(1, 2);
+        s[4] = new Point(1, 2);
+        s[5] = new Point(1, 2);
+        s[6] = new Point(1, 2);
+        s[7] = new Point(1, 2);
+        cp2.add(new ControlPoint(s));
+        Point[] t = new Point[8];
+        t[0] = new Point(1, 2);
+        t[1] = new Point(2, 2);
+        t[2] = new Point(1, 2);
+        t[3] = new Point(1, 2);
+        t[4] = new Point(1, 5);
+        t[5] = new Point(1, 2);
+        t[6] = new Point(1, 2);
+        t[7] = new Point(1, 2);
+        cp2.add(new ControlPoint(t));
+        Point[] u = new Point[8];
+        u[0] = new Point(1, 2);
+        u[1] = new Point(3, 2);
+        u[2] = new Point(1, 2);
+        u[3] = new Point(1, 5);
+        u[4] = new Point(1, 2);
+        u[5] = new Point(1, 2);
+        u[6] = new Point(1, 2);
+        u[7] = new Point(7, 2);
+        cp2.add(new ControlPoint(u));
+
+        float sum = CalculateCPDistance(cp1, cp2);
+        Log.d("DISTANCE OF CONTROL POINTS: ", Float.toString(sum));
+    }
+
+    private float CalculateCPDistance(List<ControlPoint> a, List<ControlPoint> b) {
+        float sum = 0;
+        for(int i = 0; i < a.size(); i++) {
+            sum += a.get(i).calculateSumDistance(b.get(i));
+        }
+        return sum;
     }
 
     private Bitmap resizeBitmap(Bitmap bitmap) {
@@ -888,6 +967,10 @@ public class MainActivity extends AppCompatActivity {
             float height = box[i].bottom - box[i].top;
             float width = box[i].right - box[i].left;
             if(height/width >= 0.8f){
+                if(height/width > 1.4f){
+                    height = width * 1.4f;
+                    box[i].bottom = box[i].top + height;
+                }
                 newBoundingBox.add(box[i]);
             }
         }
@@ -1045,6 +1128,7 @@ public class MainActivity extends AppCompatActivity {
     private void SelectFeature() {
         final CharSequence[] items ={"Face Candidate",
                 "Preprocess Skin Color",
+                "Test Control Points",
                 "Erode",
                 "Dilate",
                 "Face Component Candidate",
@@ -1063,6 +1147,9 @@ public class MainActivity extends AppCompatActivity {
                 if(items[which].equals("Face Candidate")) {
                     drawBitmap = getFaceFromBitmap(bitmap);
                     imageViewAfter.setImageBitmap(drawBitmap);
+                    imageViewAfter.setVisibility(View.VISIBLE);
+                } else if(items[which].equals("Test Control Points")) {
+                    testControlPoint();
                     imageViewAfter.setVisibility(View.VISIBLE);
                 } else if(items[which].equals("Preprocess Skin Color")) {
                     imageViewAfter.setImageBitmap(preprocessSkinColor(bitmap));
