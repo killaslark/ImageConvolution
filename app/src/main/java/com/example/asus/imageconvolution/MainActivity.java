@@ -442,6 +442,8 @@ public class MainActivity extends AppCompatActivity {
         }
         for(int i = 0; i < faceComponentsBoxList.size();i++){
             List<Box> validFaceComponentsBoxList = getFaceComponent(Arrays.asList(faceComponentsBoxList.get(i)), newBoundingBox.get(i));
+
+
             for (int j = 0; j < validFaceComponentsBoxList.size();j++){
                 int y = (int)newBoundingBox.get(idx.get(i)).top;
                 int x = (int)newBoundingBox.get(idx.get(i)).left;
@@ -480,8 +482,7 @@ public class MainActivity extends AppCompatActivity {
         return bitmap;
     }
 
-
-    private Bitmap showComponentWithSameRowandSize(Bitmap bitmap) {
+    private Bitmap showEyes(Bitmap bitmap) {
         List<Box[]> faceComponentsBoxList = new ArrayList<>();
 
         List<Integer> idx = new ArrayList<>();
@@ -495,39 +496,188 @@ public class MainActivity extends AppCompatActivity {
         for(int i = 0; i < faceComponentsBoxList.size();i++){
             // 1. seleksi dengan memilih kandidat komponen wajah
             List<Box> validFaceComponentsBoxList = getFaceComponent(Arrays.asList(faceComponentsBoxList.get(i)), newBoundingBox.get(i));
-
-            for (int j = 0; j < validFaceComponentsBoxList.size();j++){
-                int y = (int)newBoundingBox.get(idx.get(i)).top;
-                int x = (int)newBoundingBox.get(idx.get(i)).left;
-                bitmap = validFaceComponentsBoxList.get(j).drawBox(bitmap, x, y , Color.GREEN);
-            }
-
-            // 2. seleksi komponen yang punya tinggi sama
-            validFaceComponentsBoxList = getComponentWithSameRow(validFaceComponentsBoxList, newBoundingBox.get(i));
-
-            // 3. eliminasi komponen yang ukurannya sama
-            validFaceComponentsBoxList = eleminatePairSameRow(validFaceComponentsBoxList,newBoundingBox.get(i));
-
-            int count = 0;
-            for (int j = 0; j < validFaceComponentsBoxList.size();j++){
-                int y = (int)newBoundingBox.get(idx.get(i)).top;
-                int x = (int)newBoundingBox.get(idx.get(i)).left;
-                    bitmap = validFaceComponentsBoxList.get(j).drawBox(bitmap, x, y , Color.BLUE);
-            }
-
-
+            List<Box> eyesComponentsBoxList;
+            List<Box> noseComponentsBoxList;
             if (validFaceComponentsBoxList.size() > 3) {
+                // 2. seleksi komponen yang punya tinggi sama
+                validFaceComponentsBoxList = getComponentWithSameRow(validFaceComponentsBoxList, newBoundingBox.get(i));
+
+                // 3. eliminasi komponen yang ukurannya sama
+                validFaceComponentsBoxList = eleminatePairSameRow(validFaceComponentsBoxList, newBoundingBox.get(i));
+
+                // 4. Mata Merah
+                eyesComponentsBoxList = getEyesFromPairSameRowandSize(validFaceComponentsBoxList);
+                for (int j = 0; j < eyesComponentsBoxList.size(); j++) {
+                    int y = (int) newBoundingBox.get(idx.get(i)).top;
+                    int x = (int) newBoundingBox.get(idx.get(i)).left;
+                    bitmap = eyesComponentsBoxList.get(j).drawBox(bitmap, x, y, Color.RED);
+                }
+
                 bitmap = newBoundingBox.get(idx.get(i)).drawBox(bitmap, 0, 0, Color.RED);
             }
         }
         return bitmap;
     }
 
+
+    private Bitmap showAllFaceComponent(Bitmap bitmap) {
+        List<Box[]> faceComponentsBoxList = new ArrayList<>();
+
+        List<Integer> idx = new ArrayList<>();
+
+        for(int i = 0; i < newBoundingBox.size();i++) {
+            int[][] label = getLabel(bufferBitmap, (int) newBoundingBox.get(i).top, (int) newBoundingBox.get(i).bottom, (int) newBoundingBox.get(i).left, (int) newBoundingBox.get(i).right, Color.BLACK);
+            faceComponentsBoxList.add(getRegion(label));
+            idx.add(i);
+        }
+
+        for(int i = 0; i < faceComponentsBoxList.size();i++){
+            // 1. seleksi dengan memilih kandidat komponen wajah
+            List<Box> validFaceComponentsBoxList = getFaceComponent(Arrays.asList(faceComponentsBoxList.get(i)), newBoundingBox.get(i));
+            List<Box> mouthComponentBoxList = getFaceComponent(Arrays.asList(faceComponentsBoxList.get(i)), newBoundingBox.get(i));
+            List<Box> eyesComponentsBoxList;
+            List<Box> noseComponentsBoxList;
+            List<Box> sameRowComponentsBoxList;
+            if (validFaceComponentsBoxList.size() > 3) {
+
+                // 2. seleksi komponen yang punya tinggi sama
+                validFaceComponentsBoxList = getComponentWithSameRow(validFaceComponentsBoxList, newBoundingBox.get(i));
+
+                // 3. eliminasi komponen yang ukurannya sama
+                validFaceComponentsBoxList = eleminatePairSameRow(validFaceComponentsBoxList, newBoundingBox.get(i));
+
+
+                // 4. Mata Merah
+                eyesComponentsBoxList = getEyesFromPairSameRowandSize(validFaceComponentsBoxList);
+                for (int j = 0; j < eyesComponentsBoxList.size(); j++) {
+                    int y = (int) newBoundingBox.get(idx.get(i)).top;
+                    int x = (int) newBoundingBox.get(idx.get(i)).left;
+                    bitmap = eyesComponentsBoxList.get(j).drawBox(bitmap, x, y, Color.RED);
+                }
+
+                // 5. Hidung hijau
+                noseComponentsBoxList = getNoseFromPairSameRowandSize(validFaceComponentsBoxList);
+                for (int j = 0; j < noseComponentsBoxList.size(); j++) {
+                    int y = (int) newBoundingBox.get(idx.get(i)).top;
+                    int x = (int) newBoundingBox.get(idx.get(i)).left;
+                    bitmap = noseComponentsBoxList.get(j).drawBox(bitmap, x, y, Color.GREEN);
+                }
+
+
+                // 6. Kandidat Mulut
+                sameRowComponentsBoxList = getComponentWithSameRow(mouthComponentBoxList, newBoundingBox.get(i));
+                mouthComponentBoxList.removeAll(sameRowComponentsBoxList);
+                mouthComponentBoxList = eleminateMouthCandidatebySize(mouthComponentBoxList,newBoundingBox.get(i));
+                for (int j = 0; j < mouthComponentBoxList.size(); j++) {
+                    int y = (int) newBoundingBox.get(idx.get(i)).top;
+                    int x = (int) newBoundingBox.get(idx.get(i)).left;
+                    bitmap = mouthComponentBoxList.get(j).drawBox(bitmap, x, y, Color.BLUE);
+                }
+
+
+
+                bitmap = newBoundingBox.get(idx.get(i)).drawBox(bitmap, 0, 0, Color.RED);
+            }
+        }
+        return bitmap;
+    }
+
+
+    private Bitmap showNose(Bitmap bitmap) {
+        List<Box[]> faceComponentsBoxList = new ArrayList<>();
+
+        List<Integer> idx = new ArrayList<>();
+
+        for(int i = 0; i < newBoundingBox.size();i++) {
+            int[][] label = getLabel(bufferBitmap, (int) newBoundingBox.get(i).top, (int) newBoundingBox.get(i).bottom, (int) newBoundingBox.get(i).left, (int) newBoundingBox.get(i).right, Color.BLACK);
+            faceComponentsBoxList.add(getRegion(label));
+            idx.add(i);
+        }
+
+        for(int i = 0; i < faceComponentsBoxList.size();i++){
+            // 1. seleksi dengan memilih kandidat komponen wajah
+            List<Box> validFaceComponentsBoxList = getFaceComponent(Arrays.asList(faceComponentsBoxList.get(i)), newBoundingBox.get(i));
+            List<Box> noseComponentsBoxList;
+            if (validFaceComponentsBoxList.size() > 3) {
+                // 2. seleksi komponen yang punya tinggi sama
+                validFaceComponentsBoxList = getComponentWithSameRow(validFaceComponentsBoxList, newBoundingBox.get(i));
+
+
+                // 3. eliminasi komponen yang ukurannya sama
+                validFaceComponentsBoxList = eleminatePairSameRow(validFaceComponentsBoxList, newBoundingBox.get(i));
+
+                // 4. Hidung hijau ( Kalau dapat hidung )
+                noseComponentsBoxList = getNoseFromPairSameRowandSize(validFaceComponentsBoxList);
+
+                for (int j = 0; j < noseComponentsBoxList.size(); j++) {
+                    int y = (int) newBoundingBox.get(idx.get(i)).top;
+                    int x = (int) newBoundingBox.get(idx.get(i)).left;
+                    bitmap = noseComponentsBoxList.get(j).drawBox(bitmap, x, y, Color.GREEN);
+                }
+                bitmap = newBoundingBox.get(idx.get(i)).drawBox(bitmap, 0, 0, Color.RED);
+            }
+        }
+        return bitmap;
+    }
+
+    private Bitmap showMouthCandidate(Bitmap bitmap) {
+        List<Box[]> faceComponentsBoxList = new ArrayList<>();
+        List<Integer> idx = new ArrayList<>();
+        for(int i = 0; i < newBoundingBox.size();i++) {
+            int[][] label = getLabel(bufferBitmap, (int) newBoundingBox.get(i).top, (int) newBoundingBox.get(i).bottom, (int) newBoundingBox.get(i).left, (int) newBoundingBox.get(i).right, Color.BLACK);
+            faceComponentsBoxList.add(getRegion(label));
+            idx.add(i);
+        }
+        for(int i = 0; i < faceComponentsBoxList.size();i++){
+            // 1. seleksi kandidat komponen wajah
+            List<Box> validFaceComponentsBoxList = getFaceComponent(Arrays.asList(faceComponentsBoxList.get(i)), newBoundingBox.get(i));
+            List<Box> sameRowComponentsBoxList;
+            if (validFaceComponentsBoxList.size() > 3) {
+                // 2. simpan komponen yang punya tinggi sama
+                sameRowComponentsBoxList = getComponentWithSameRow(validFaceComponentsBoxList, newBoundingBox.get(i));
+                // 3. eliminasi komponen dengan tinggi sama (hidung dan mata)
+                validFaceComponentsBoxList.removeAll(sameRowComponentsBoxList);
+                validFaceComponentsBoxList = eleminateMouthCandidatebySize(validFaceComponentsBoxList,newBoundingBox.get(i));
+
+                for (int j = 0; j < validFaceComponentsBoxList.size(); j++) {
+                    int y = (int) newBoundingBox.get(idx.get(i)).top;
+                    int x = (int) newBoundingBox.get(idx.get(i)).left;
+                    bitmap = validFaceComponentsBoxList.get(j).drawBox(bitmap, x, y, Color.BLUE);
+                }
+                bitmap = newBoundingBox.get(idx.get(i)).drawBox(bitmap, 0, 0, Color.RED);
+            }
+        }
+        return bitmap;
+    }
+
+
+    private List<Box> eleminateMouthCandidatebySize(List<Box> faceComponentsBoxList, Box faceBox) {
+        List<Box> candidateBoxList = new ArrayList<>();
+        List<Box> mouthCandidate = new ArrayList<>();
+
+
+        float width = Math.abs(faceBox.left - faceBox.right);
+        float minWidthDistance = 0.05f* width;
+
+        for(int i = 0;i < faceComponentsBoxList.size();i++){
+            candidateBoxList.add(faceComponentsBoxList.get(i));
+        }
+
+        // ambil seluruh kandidate dengan ukuran yang mungkin
+        for(int i = 0; i < candidateBoxList.size() - 1; i++){
+            if ( Math.abs(candidateBoxList.get(i).right-candidateBoxList.get(i).left) > width*0.3f) {
+                mouthCandidate.add(candidateBoxList.get(i));
+            }
+        }
+        return mouthCandidate;
+    }
+
+
     // Mengambil  PAIR kandidat yang posisi nya sejajar
     private List<Box> getComponentWithSameRow(List<Box> faceComponentsBoxList, Box faceBox){
         List<Box> candidateBoxList = new ArrayList<>();
         List<Box> pairComponentsWithSameRow = new ArrayList<>();
-        float width = Math.abs(faceBox.left - faceBox.right);
+        float height = Math.abs(faceBox.bottom - faceBox.top);
 
         for(int i = 0;i < faceComponentsBoxList.size();i++){
             candidateBoxList.add(faceComponentsBoxList.get(i));
@@ -535,54 +685,24 @@ public class MainActivity extends AppCompatActivity {
 
 
         // dipakai width aja karna gambar masih nangkap leher
-        if (candidateBoxList.size() > 2) {
-            float minWidthDistance = 0.05f* width;
+        float minWidthDistance = 0.05f* height;
 
             // ambil seluruh pair yang sejajar dengan threshold 5% dari tinggi faceBox
             for(int i = 0; i < candidateBoxList.size();i++){
                 for(int j = i+1; j < candidateBoxList.size();j++){
                     if(i != j){
                         if(boxHeightDistance(candidateBoxList.get(i),candidateBoxList.get(j)) < minWidthDistance ){
-                            pairComponentsWithSameRow.add(candidateBoxList.get(i));
-                            pairComponentsWithSameRow.add(candidateBoxList.get(j));
+                            if( !box2Insidebox1(candidateBoxList.get(i),candidateBoxList.get(j)) &&
+                                !box2Insidebox1(candidateBoxList.get(j),candidateBoxList.get(i))) {
+                                pairComponentsWithSameRow.add(candidateBoxList.get(i));
+                                pairComponentsWithSameRow.add(candidateBoxList.get(j));
+                            }
                         }
                     }
                 }
             }
-        } else if(candidateBoxList.size() == 2) {
-            pairComponentsWithSameRow.add(candidateBoxList.get(0));
-            pairComponentsWithSameRow.add(candidateBoxList.get(1));
-        }
 
         return pairComponentsWithSameRow;
-    }
-
-
-    // mengambil PAIR Kandidat dengan ukuran mirip
-    private List<Box> getComponentWithSimilarSize(List<Box> faceComponentsBoxList, Box faceBox){
-        List<Box> candidateBoxList = new ArrayList<>();
-        List<Box> pairComponentsWithSimilarSize = new ArrayList<>();
-
-
-        float width = Math.abs(faceBox.left - faceBox.right);
-        float minWidthDistance = 0.05f* width;
-        for(int i = 0;i < faceComponentsBoxList.size();i++){
-            candidateBoxList.add(faceComponentsBoxList.get(i));
-        }
-
-        // ambil seluruh pair yang sejajar dengan threshold 5% dari tinggi faceBox
-        for(int i = 0; i < candidateBoxList.size();i++){
-            for(int j = i+1; j < candidateBoxList.size();j++){
-                if(i != j){
-                    if(isHasSameSize(candidateBoxList.get(i), candidateBoxList.get(j),faceBox)){
-                        pairComponentsWithSimilarSize.add(candidateBoxList.get(i));
-                        pairComponentsWithSimilarSize.add(candidateBoxList.get(j));
-                    }
-                }
-            }
-        }
-
-        return pairComponentsWithSimilarSize;
     }
 
 
@@ -592,56 +712,58 @@ public class MainActivity extends AppCompatActivity {
 
 
         float width = Math.abs(faceBox.left - faceBox.right);
-        float minWidthDistance = 0.05f* width;
 
         for(int i = 0;i < faceComponentsBoxList.size();i++){
             candidateBoxList.add(faceComponentsBoxList.get(i));
         }
 
         // ambil seluruh pair yang sejajar dengan threshold 5% dari tinggi faceBox
-        for(int i = 0; i < candidateBoxList.size() - 1; i++){
+        for(int i = 0; i < candidateBoxList.size() - 1; i=i+2){
             if(isHasSameSize(candidateBoxList.get(i), candidateBoxList.get(i+1),faceBox)){
-                pairComponentsWithSameRowandSimilarSize.add(candidateBoxList.get(i));
-                pairComponentsWithSameRowandSimilarSize.add(candidateBoxList.get(i+1));
-            }
-        }
-
-        return pairComponentsWithSameRowandSimilarSize;
-
-    }
-
-    // mengambil PAIR Kandidat dengan ukuran mirip
-    private List<Box> getComponentWithSameRowandSimilarSize(List<Box> faceComponentsBoxList, Box faceBox){
-        List<Box> candidateBoxList = new ArrayList<>();
-        List<Box> pairComponentsWithSameRowandSimilarSize = new ArrayList<>();
-
-
-        float width = Math.abs(faceBox.left - faceBox.right);
-        float minWidthDistance = 0.05f* width;
-
-        for(int i = 0;i < faceComponentsBoxList.size();i++){
-            candidateBoxList.add(faceComponentsBoxList.get(i));
-        }
-        // ambil seluruh pair yang sejajar dengan threshold 5% dari tinggi faceBox
-        for(int i = 0; i < candidateBoxList.size();i++){
-            for(int j = i+1; j < candidateBoxList.size();j++){
-                if(i != j){
-
-                    // same row
-                    if(boxHeightDistance(candidateBoxList.get(i),candidateBoxList.get(j)) < minWidthDistance ){
-                            // same size
-                            if(isHasSameSize(candidateBoxList.get(i), candidateBoxList.get(j),faceBox)){
-                                pairComponentsWithSameRowandSimilarSize.add(candidateBoxList.get(i));
-                            pairComponentsWithSameRowandSimilarSize.add(candidateBoxList.get(j));
-                        }
-                    }
+                if (candidateBoxList.get(i).valid(width*0.1f)) {
+                    pairComponentsWithSameRowandSimilarSize.add(candidateBoxList.get(i));
+                    pairComponentsWithSameRowandSimilarSize.add(candidateBoxList.get(i+1));
                 }
             }
         }
-
         return pairComponentsWithSameRowandSimilarSize;
     }
 
+    private List<Box> getEyesFromPairSameRowandSize(List<Box> faceComponentsBoxList) {
+        List<Box> candidateBoxList = new ArrayList<>();
+        List<Box> pairEyes = new ArrayList<>();
+
+        float height1,height2;
+        if (faceComponentsBoxList.size() == 4) {
+            for (int i = 0; i < 2; i++) {
+                candidateBoxList.add(faceComponentsBoxList.get(i));
+            }
+        } else {
+            for (int i = 0; i < 4; i++) {
+                candidateBoxList.add(faceComponentsBoxList.get(i));
+            }
+        }
+
+        return candidateBoxList;
+    }
+
+    private List<Box> getNoseFromPairSameRowandSize(List<Box> faceComponentsBoxList) {
+        List<Box> candidateBoxList = new ArrayList<>();
+        List<Box> noseBox = new ArrayList<>();
+
+        float height1,height2;
+        if (faceComponentsBoxList.size() == 4) {
+            for (int i = 2; i < 4; i++) {
+                candidateBoxList.add(faceComponentsBoxList.get(i));
+            }
+        } else if (faceComponentsBoxList.size() >6) {
+            for (int i = 4; i < 6; i++) {
+                candidateBoxList.add(faceComponentsBoxList.get(i));
+            }
+        }
+
+        return candidateBoxList;
+    }
 
 
     private boolean isHasSameSize(Box box1, Box box2, Box faceBox) {
@@ -653,14 +775,12 @@ public class MainActivity extends AppCompatActivity {
         float widthBox2 = Math.abs(box2.bottom - box2.top);
         float heightBox2 = Math.abs(box2.right - box2.left);
 
-        if (Math.abs(heightBox1-heightBox2) < 0.05*boxHeight + 0.05*boxWidth) {
+        if (Math.abs(heightBox1*widthBox1- heightBox2*widthBox2) < 0.05*boxHeight*boxWidth) {
             return true;
         } else {
             return false;
         }
     }
-
-
 
     private List<Box> getValidEye(List<Box> eyeBox, float outerBoxSize){
         List<Box> box = new ArrayList<>();
@@ -712,14 +832,14 @@ public class MainActivity extends AppCompatActivity {
                 Math.abs(faceBox.left -(faceBox.left+ faceComponentCandidate.get(i).left)) < (0.05*width)) {
 
             } else {
-                finalBox.add(faceComponentCandidate.get(i));
+                    finalBox.add(faceComponentCandidate.get(i));
             }
         }
         return finalBox;
     }
 
     private float boxHeightDistance(Box box1, Box box2){
-        return Math.abs(box1.top - box2.top);
+        return Math.abs( (box1.top + ((box1.bottom-box1.top)/2)) - (box2.top + ((box2.bottom-box2.top)/2)) );
     }
 
     private List<Box> removeInsideBox(Box[] box){
@@ -929,24 +1049,10 @@ public class MainActivity extends AppCompatActivity {
                 "Dilate",
                 "Face Component Candidate",
                 "Component with Same Row",
-                "Eyes Candidate",
+                "Mouth Candidate",
                 "Eyes",
-//                "Identity",
-//                "Blur",
-//                "Gaussian blur 5 x 5",
-//                "Sharpen",
-//                "Edge Detection 0",
-//                "Edge Detection 1",
-//                "Outline",
-//                "Bottom Sobel",
-//                "Top Sobel",
-//                "Left Sobel",
-//                "Right Sobel",
-//                "Sobel",
-//                "Robert",
-//                "Prewitt",
-//                "Custom",
-//                "Greyscale",
+                "Nose",
+                "All Face Component",
                 "Cancel"};
 
         AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
@@ -981,63 +1087,29 @@ public class MainActivity extends AppCompatActivity {
                     }
                     imageViewAfter.setImageBitmap(bufferBitmap);
                     imageViewAfter.setVisibility(View.VISIBLE);
-                } else if (items[which].equals(("Eyes Candidate"))) {
-                    drawBitmap = showComponentWithSameRowandSize(bufferBitmap);
+                } else if (items[which].equals(("Eyes"))) {
+                    drawBitmap = showEyes(bufferBitmap);
                     imageViewAfter.setImageBitmap(drawBitmap);
                 }
-                else if(items[which].equals("Eyes")){
-                    drawBitmap = drawEyesComponentCandidate(bufferBitmap);
+                else if(items[which].equals("Nose")){
+                    drawBitmap = showNose(bufferBitmap);
                     imageViewAfter.setImageBitmap(drawBitmap);
-                } else if (items[which].equals(("Face Component Candidate"))) {
+                }
+                else if(items[which].equals("Mouth Candidate")){
+                    drawBitmap = showMouthCandidate(bufferBitmap);
+                    imageViewAfter.setImageBitmap(drawBitmap);
+                }
+                else if(items[which].equals("All Face Component")){
+                    drawBitmap = showAllFaceComponent(bufferBitmap);
+                    imageViewAfter.setImageBitmap(drawBitmap);
+                }
+                else if (items[which].equals(("Face Component Candidate"))) {
                     drawBitmap = getFaceComponentCandidate(bufferBitmap);
                     imageViewAfter.setImageBitmap(drawBitmap);
                 } else if (items[which].equals(("Component with Same Row"))) {
                     drawBitmap = showComponentWithSameRow(bufferBitmap);
                     imageViewAfter.setImageBitmap(drawBitmap);
                 }
-//                else if(items[which].equals("Identity")) {
-//                    convoluteImage(bitmap,secondBitmap,identity);
-//                } else if (items[which].equals("Blur")) {
-//                    convoluteImage(bitmap,secondBitmap,blur);
-//                } else if (items[which].equals("Gaussian blur 5 x 5")) {
-//                    convoluteImage(bitmap,secondBitmap,gaussian_blur);
-//                } else if (items[which].equals("Sharpen")) {
-//                    convoluteImage(bitmap,secondBitmap,sharpen);
-//                } else if (items[which].equals("Edge Detection 0")){
-//                    convoluteImage(bitmap,secondBitmap,edge_detection0);
-//                } else if (items[which].equals("Edge Detection 1")){
-//                    convoluteImage(bitmap,secondBitmap,edge_detection1);
-//                } else if (items[which].equals("Outline")){
-//                    convoluteImage(bitmap,secondBitmap,outline);
-//                } else if (items[which].equals("Bottom Sobel")) {
-//                    convoluteImage(bitmap,secondBitmap,bottomSobel);
-//                } else if (items[which].equals("Right Sobel")){
-//                    convoluteImage(bitmap,secondBitmap,rightSobel);
-//                } else if (items[which].equals("Left Sobel")){
-//                    convoluteImage(bitmap,secondBitmap,leftSobel);
-//                } else if (items[which].equals("Top Sobel")) {
-//                    convoluteImage(bitmap, secondBitmap, topSobel);
-//                } else if (items[which].equals("Sobel")){
-//                    selectedKernel.clear();
-//                    selectedKernel.add(topSobel);
-//                    selectedKernel.add(rightSobel);
-//                    convoluteImage(bitmap,secondBitmap,selectedKernel);
-//                }else if (items[which].equals("Robert")){
-//                    selectedKernel.clear();
-//                    selectedKernel.add(robert1);
-//                    selectedKernel.add(robert2);
-//                    convoluteImage(bitmap,secondBitmap,selectedKernel);
-//                } else if (items[which].equals("Prewitt")) {
-//                    selectedKernel.clear();
-//                    selectedKernel.add(prewitt_horizontal);
-//                    selectedKernel.add(prewitt_vertical);
-//                    convoluteImage(bitmap, secondBitmap,selectedKernel);
-//                } else if (items[which].equals("Custom")) {
-//                    updateCustomMatrix();
-//                    convoluteImage(bitmap, secondBitmap, custom_matrix);
-//                } else if (items[which].equals("Greyscale")){
-//                    convertGreyscale();
-//                }
                 else if (items[which].equals("Cancel")) {
                     dialog.dismiss();
                 }
