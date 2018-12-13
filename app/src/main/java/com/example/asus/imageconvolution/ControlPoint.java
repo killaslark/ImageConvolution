@@ -37,7 +37,7 @@ public class ControlPoint {
     public float calculateSumDistance(ControlPoint c) {
         float sum = 0;
         for(int i = 0; i < points.length; i++) {
-            sum += Math.sqrt(Math.pow(points[i].x - c.points[i].x, 2)+Math.pow(Math.pow(points[i].y - c.points[i].y , 2));
+            sum += Math.sqrt(Math.pow(points[i].x - c.points[i].x, 2) + Math.pow(Math.pow(points[i].y - c.points[i].y , 2));
         }
         return sum;
     }

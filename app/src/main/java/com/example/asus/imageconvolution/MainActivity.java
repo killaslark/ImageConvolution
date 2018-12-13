@@ -211,6 +211,14 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private float CalculateCPDistance(List<ControlPoint> a, List<ControlPoint> b) {
+        float sum = 0;
+        for(int i = 0; i < a.size(); i++) {
+            sum += a.get(i).calculateSumDistance(b.get(i));
+        }
+        return sum;
+    }
+
     private Bitmap resizeBitmap(Bitmap bitmap) {
         int width = bitmap.getWidth();
         int height = bitmap.getHeight();
