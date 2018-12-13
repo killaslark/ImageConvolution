@@ -569,6 +569,10 @@ public class MainActivity extends AppCompatActivity {
             float width = box[i].right - box[i].left;
             Log.d("RATIO", Float.toString(height/width));
             if(height/width >= 0.8f){
+                if(height/width > 1.4f){
+                    height = width * 1.4f;
+                    box[i].bottom = box[i].top + height;
+                }
                 newBoundingBox.add(box[i]);
             }
         }
