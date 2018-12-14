@@ -18,7 +18,10 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
+
+import org.w3c.dom.Text;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -43,6 +46,7 @@ public class MainActivity extends AppCompatActivity {
     private ArrayList<double[][]> selectedKernel = new ArrayList<>();
     private List<Box> newBoundingBox = new ArrayList<>();
     private List<Box> faceComponentCandidate = new ArrayList<>();
+    private TextView recognitionPrediction;
     private ImageView imageViewBefore,imageViewAfter;
     private EditText[][] matrixView = new EditText[3][3];
     private Integer REQUEST_CAMERA = 1, SELECT_FILE = 0;
@@ -214,6 +218,11 @@ public class MainActivity extends AppCompatActivity {
                 imageViewBefore.setImageURI(selectedImageUri);
             }
         }
+    }
+
+    private void updateTextView (String input) {
+        TextView text = (TextView) findViewById(R.id.recognition_predict);
+        text.setText(input);
     }
 
     private void testControlPoint(){
