@@ -3,6 +3,7 @@ package com.example.asus.imageconvolution;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Point;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +27,7 @@ public class ControlPoint {
     public Bitmap drawControlPoint(Bitmap bitmap, int offsetX, int offsetY, int color){
         Bitmap tempBitmap = bitmap.copy(Bitmap.Config.ARGB_8888,true);
         for(int i = 0; i < points.length;i++){
+            Log.d("CONTROLPOINTS", "" + points[i].toString());
             Point from = new Point(offsetX+points[i].x, offsetY+points[i].y);
             int j = i == points.length-1 ? 0 : i+1;
             Point to = new Point(offsetX+points[j].x, offsetY+points[j].y);

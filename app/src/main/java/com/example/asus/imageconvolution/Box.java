@@ -50,12 +50,10 @@ public class Box {
         int right = (int)this.right;
         int top = (int)this.top;
         int bottom = (int)this.bottom;
-        int topEye = top + Math.round((bottom-top)*0.25f);
-        int bottomEye = top + Math.round((bottom-top)*0.5f);
         if(left != -1 && right != -1 && top != -1 && bottom != -1) {
             for (int i = left; i <= right; i++) {
                 for (int j = top; j <= bottom; j++) {
-                    if (i == left || i == right || j == top || j == bottom || j == topEye || j == bottomEye) {
+                    if (i == left || i == right || j == top || j == bottom) {
                         bitmap.setPixel((int) i, (int) j, color);
                     }
                 }
@@ -111,18 +109,14 @@ public class Box {
         Log.d("BOTTOMCOORDINATE", "" + this.bottom);
         Log.d("HALFCOORDINATE", "" + halfVertical);
         Point centerPoint = new Point(offsetX+halfHorizontal, offsetY+halfVertical);
-        Point topLeft = getFirstWhitePixel(bitmap, centerPoint, new Point(left, top), offsetX, offsetY);
-        Point topRight = getFirstWhitePixel(bitmap, centerPoint, new Point(right, top), offsetX, offsetY);
-        Point bottomLeft = getFirstWhitePixel(bitmap, centerPoint, new Point(left, bottom), offsetX, offsetY);
-        Point bottomRight = getFirstWhitePixel(bitmap, centerPoint, new Point(right, bottom), offsetX, offsetY);
-        controlPoint.points[0] = new Point((int)this.left, halfVertical);
-        controlPoint.points[1] = topLeft;
-        controlPoint.points[2] = new Point(halfHorizontal,(int)this.top);
-        controlPoint.points[3] = topRight;
-        controlPoint.points[4] = new Point((int)this.right, halfVertical);
-        controlPoint.points[5] = bottomRight;
-        controlPoint.points[6] = new Point(halfHorizontal,(int)this.bottom);
-        controlPoint.points[7] = bottomLeft;
+        controlPoint.points[0] = getFirstWhitePixel(bitmap, centerPoint, new Point(left, offsetY+halfVertical), offsetX, offsetY);
+        controlPoint.points[1] = getFirstWhitePixel(bitmap, centerPoint, new Point(left, top), offsetX, offsetY);;
+        controlPoint.points[2] = getFirstWhitePixel(bitmap, centerPoint, new Point(offsetX+halfHorizontal, top), offsetX, offsetY);
+        controlPoint.points[3] = getFirstWhitePixel(bitmap, centerPoint, new Point(right, top), offsetX, offsetY);;
+        controlPoint.points[4] = getFirstWhitePixel(bitmap, centerPoint, new Point(right, offsetY+halfVertical), offsetX, offsetY);
+        controlPoint.points[5] = getFirstWhitePixel(bitmap, centerPoint, new Point(right, bottom), offsetX, offsetY);
+        controlPoint.points[6] = getFirstWhitePixel(bitmap, centerPoint, new Point(offsetX+halfHorizontal, bottom), offsetX, offsetY);
+        controlPoint.points[7] = getFirstWhitePixel(bitmap, centerPoint, new Point(left, bottom), offsetX, offsetY);
         return controlPoint;
     }
 
