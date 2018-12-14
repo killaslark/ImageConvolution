@@ -42,6 +42,7 @@ public class MainActivity extends AppCompatActivity {
 
     private ArrayList<double[][]> selectedKernel = new ArrayList<>();
     private List<Box> newBoundingBox = new ArrayList<>();
+    private List<Box> faceComponentCandidate = new ArrayList<>();
     private ImageView imageViewBefore,imageViewAfter;
     private EditText[][] matrixView = new EditText[3][3];
     private Integer REQUEST_CAMERA = 1, SELECT_FILE = 0;
@@ -616,7 +617,14 @@ public class MainActivity extends AppCompatActivity {
             List<Box> mouthComponentBoxList = getFaceComponent(Arrays.asList(faceComponentsBoxList.get(i)), newBoundingBox.get(i));
             List<Box> eyesComponentsBoxList;
             List<Box> noseComponentsBoxList;
-            List<Box> sameRowComponentsBoxList;
+
+            faceComponentCandidate.removeAll(faceComponentCandidate);
+
+            for (int x =0; x < 5; x++) {
+                faceComponentCandidate.add(new Box());
+
+            }
+
             if (validFaceComponentsBoxList.size() > 3) {
 
                 // 2. seleksi komponen yang punya tinggi sama
@@ -634,6 +642,9 @@ public class MainActivity extends AppCompatActivity {
                     bitmap = eyesComponentsBoxList.get(j).drawBox(bitmap, x, y, Color.RED);
                 }
 
+                faceComponentCandidate.set(0,eyesComponentsBoxList.get(0));
+                faceComponentCandidate.set(1,eyesComponentsBoxList.get(1));
+
                 // 5. Hidung hijau
                 noseComponentsBoxList = getNoseFromPairSameRowandSize(validFaceComponentsBoxList);
                 for (int j = 0; j < noseComponentsBoxList.size(); j++) {
@@ -642,10 +653,14 @@ public class MainActivity extends AppCompatActivity {
                     bitmap = noseComponentsBoxList.get(j).drawBox(bitmap, x, y, Color.GREEN);
                 }
 
+                faceComponentCandidate.set(2,noseComponentsBoxList.get(0));
+                faceComponentCandidate.set(3,noseComponentsBoxList.get(1));
+
 
                 // 6. Kandidat Mulut
-                sameRowComponentsBoxList = getComponentWithSameRow(mouthComponentBoxList, newBoundingBox.get(i));
-                mouthComponentBoxList.removeAll(sameRowComponentsBoxList);
+//                sameRowComponentsBoxList = getComponentWithSameRow(mouthComponentBoxList, newBoundingBox.get(i));
+                mouthComponentBoxList.removeAll(eyesComponentsBoxList);
+                mouthComponentBoxList.removeAll(noseComponentsBoxList);
                 mouthComponentBoxList = eleminateMouthCandidatebySize(mouthComponentBoxList,newBoundingBox.get(i));
                 for (int j = 0; j < mouthComponentBoxList.size(); j++) {
                     int y = (int) newBoundingBox.get(idx.get(i)).top;
@@ -653,8 +668,8 @@ public class MainActivity extends AppCompatActivity {
                     bitmap = mouthComponentBoxList.get(j).drawBox(bitmap, x, y, Color.BLUE);
                 }
 
-
-
+                faceComponentCandidate.set(4,mouthComponentBoxList.get(0));
+                
                 bitmap = newBoundingBox.get(idx.get(i)).drawBox(bitmap, 0, 0, Color.RED);
             }
         }
@@ -679,11 +694,11 @@ public class MainActivity extends AppCompatActivity {
             List<Box> noseComponentsBoxList;
             if (validFaceComponentsBoxList.size() > 3) {
                 // 2. seleksi komponen yang punya tinggi sama
-                validFaceComponentsBoxList = getComponentWithSameRow(validFaceComponentsBoxList, newBoundingBox.get(i));
+//                validFaceComponentsBoxList = getComponentWithSameRow(validFaceComponentsBoxList, newBoundingBox.get(i));
 
 
                 // 3. eliminasi komponen yang ukurannya sama
-                validFaceComponentsBoxList = eleminatePairSameRow(validFaceComponentsBoxList, newBoundingBox.get(i));
+//                validFaceComponentsBoxList = eleminatePairSameRow(validFaceComponentsBoxList, newBoundingBox.get(i));
 
                 // 4. Hidung hijau ( Kalau dapat hidung )
                 noseComponentsBoxList = getNoseFromPairSameRowandSize(validFaceComponentsBoxList);
