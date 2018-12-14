@@ -303,17 +303,17 @@ public class MainActivity extends AppCompatActivity {
 
     private void RecognizeFace() {
         int n = 3; //Face Reference Size
-        List<ControlPoint> ref = new ArrayList<>(); //Control Point Reference
-        ControlPoint current = new ControlPoint(); //Current tested control point
+        List<List<ControlPoint>> ref = new ArrayList<>(); //Control Point Reference
+        List<ControlPoint> current = new ArrayList<>(); //Current tested control point
         float min = 999999;
         int idx = 0;
         for(int i = 0; i < n; i++) {
             if (i == 0) {
-                min = current.calculateSumDistance(ref.get(i));
+                min = CalculateCPDistance(current, ref.get(i));
                 idx = i;
             } else {
-                if (current.calculateSumDistance(ref.get(i)) < min)
-                    min = current.calculateSumDistance(ref.get(i));
+                if (CalculateCPDistance(current, ref.get(i)) < min)
+                    min = CalculateCPDistance(current, ref.get(i));
                     idx = i;
             }
         }
