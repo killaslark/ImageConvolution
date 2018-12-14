@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.Vector;
 
@@ -298,6 +299,26 @@ public class MainActivity extends AppCompatActivity {
             sum += a.get(i).calculateSumDistance(b.get(i));
         }
         return sum;
+    }
+
+    private void RecognizeFace() {
+        int n = 3; //Face Reference Size
+        List<ControlPoint> ref = new ArrayList<>(); //Control Point Reference
+        ControlPoint current = new ControlPoint(); //Current tested control point
+        float min = 999999;
+        int idx = 0;
+        for(int i = 0; i < n; i++) {
+            if (i == 0) {
+                min = current.calculateSumDistance(ref.get(i));
+                idx = i;
+            } else {
+                if (current.calculateSumDistance(ref.get(i)) < min)
+                    min = current.calculateSumDistance(ref.get(i));
+                    idx = i;
+            }
+        }
+
+        updateTextView(ref.get(idx).toString()); //Get COntrol point name
     }
 
     private Bitmap resizeBitmap(Bitmap bitmap) {
