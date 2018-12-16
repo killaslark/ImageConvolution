@@ -97,6 +97,10 @@ public class Box {
         return edges;
     }
 
+    public boolean haveEdges(){
+        return (left != -1 && right != -1 && top != -1 && bottom != -1);
+    }
+
     private ControlPoint getControlPoint(Bitmap bitmap, int offsetX, int offsetY){
         ControlPoint controlPoint = new ControlPoint();
         int left = offsetX+(int)this.left;

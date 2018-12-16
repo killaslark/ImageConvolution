@@ -7,6 +7,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Point;
+import android.media.FaceDetector;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -42,7 +43,7 @@ public class MainActivity extends AppCompatActivity {
 
     private ArrayList<double[][]> selectedKernel = new ArrayList<>();
     private List<Box> newBoundingBox = new ArrayList<>();
-    private List<Box> faceComponentCandidate = new ArrayList<>();
+    private List<ControlPoint> faceComponentCandidate = new ArrayList<>();
     private ImageView imageViewBefore,imageViewAfter;
     private EditText[][] matrixView = new EditText[3][3];
     private Integer REQUEST_CAMERA = 1, SELECT_FILE = 0;
@@ -621,9 +622,9 @@ public class MainActivity extends AppCompatActivity {
             faceComponentCandidate.removeAll(faceComponentCandidate);
 
             for (int x =0; x < 5; x++) {
-                faceComponentCandidate.add(new Box());
+                faceComponentCandidate.add(new ControlPoint());
 
-            }
+        }
 
             if (validFaceComponentsBoxList.size() > 3) {
 
@@ -635,26 +636,38 @@ public class MainActivity extends AppCompatActivity {
 
 
                 // 4. Mata Merah
+                int y = (int) newBoundingBox.get(idx.get(i)).top;
+                int x = (int) newBoundingBox.get(idx.get(i)).left;
                 eyesComponentsBoxList = getEyesFromPairSameRowandSize(validFaceComponentsBoxList);
                 for (int j = 0; j < eyesComponentsBoxList.size(); j++) {
-                    int y = (int) newBoundingBox.get(idx.get(i)).top;
-                    int x = (int) newBoundingBox.get(idx.get(i)).left;
                     bitmap = eyesComponentsBoxList.get(j).drawBox(bitmap, x, y, Color.RED);
                 }
 
-                faceComponentCandidate.set(0,eyesComponentsBoxList.get(0));
-                faceComponentCandidate.set(1,eyesComponentsBoxList.get(1));
+
+
+                if(eyesComponentsBoxList.size() > 0) {
+                    faceComponentCandidate.set(0,eyesComponentsBoxList.get(0).getEdges(bitmap, x, y));
+                    bitmap = faceComponentCandidate.get(0).drawControlPoint(bitmap, x, y, Color.YELLOW);
+                }
+                if(eyesComponentsBoxList.size() > 0) {
+                    faceComponentCandidate.set(1,eyesComponentsBoxList.get(1).getEdges(bitmap, x, y));
+                    bitmap = faceComponentCandidate.get(1).drawControlPoint(bitmap, x, y, Color.YELLOW);
+                }
 
                 // 5. Hidung hijau
                 noseComponentsBoxList = getNoseFromPairSameRowandSize(validFaceComponentsBoxList);
                 for (int j = 0; j < noseComponentsBoxList.size(); j++) {
-                    int y = (int) newBoundingBox.get(idx.get(i)).top;
-                    int x = (int) newBoundingBox.get(idx.get(i)).left;
                     bitmap = noseComponentsBoxList.get(j).drawBox(bitmap, x, y, Color.GREEN);
                 }
 
-                faceComponentCandidate.set(2,noseComponentsBoxList.get(0));
-                faceComponentCandidate.set(3,noseComponentsBoxList.get(1));
+                if(noseComponentsBoxList.size() > 0) {
+                    faceComponentCandidate.set(2, noseComponentsBoxList.get(0).getEdges(bitmap, x, y));
+                    bitmap = faceComponentCandidate.get(2).drawControlPoint(bitmap, x, y, Color.YELLOW);
+                }
+                if(noseComponentsBoxList.size() > 0) {
+                    faceComponentCandidate.set(3, noseComponentsBoxList.get(1).getEdges(bitmap, x, y));
+                    bitmap = faceComponentCandidate.get(3).drawControlPoint(bitmap, x, y, Color.YELLOW);
+                }
 
 
                 // 6. Kandidat Mulut
@@ -663,12 +676,14 @@ public class MainActivity extends AppCompatActivity {
                 mouthComponentBoxList.removeAll(noseComponentsBoxList);
                 mouthComponentBoxList = eleminateMouthCandidatebySize(mouthComponentBoxList,newBoundingBox.get(i));
                 for (int j = 0; j < mouthComponentBoxList.size(); j++) {
-                    int y = (int) newBoundingBox.get(idx.get(i)).top;
-                    int x = (int) newBoundingBox.get(idx.get(i)).left;
                     bitmap = mouthComponentBoxList.get(j).drawBox(bitmap, x, y, Color.BLUE);
                 }
 
-                faceComponentCandidate.set(4,mouthComponentBoxList.get(0));
+                if(mouthComponentBoxList.size() > 0) {
+                    faceComponentCandidate.set(4,mouthComponentBoxList.get(0).getEdges(bitmap, x, y));
+                    bitmap = faceComponentCandidate.get(4).drawControlPoint(bitmap, x, y, Color.YELLOW);
+                }
+
                 
                 bitmap = newBoundingBox.get(idx.get(i)).drawBox(bitmap, 0, 0, Color.RED);
             }
@@ -759,7 +774,7 @@ public class MainActivity extends AppCompatActivity {
 
         // ambil seluruh kandidate dengan ukuran yang mungkin
         for(int i = 0; i < candidateBoxList.size() - 1; i++){
-            if ( Math.abs(candidateBoxList.get(i).right-candidateBoxList.get(i).left) > width*0.3f) {
+            if ( Math.abs(candidateBoxList.get(i).right-candidateBoxList.get(i).left) > width*0.2f) {
                 mouthCandidate.add(candidateBoxList.get(i));
             }
         }
@@ -972,6 +987,29 @@ public class MainActivity extends AppCompatActivity {
         return boxes;
     }
 
+    private String predictFace(){
+        float min = -1;
+        int idx = 0;
+        float sumDis = 0;
+        for(int i = 0; i < FaceReference.controlPoint.length;i++) {
+            sumDis = 0;
+            for (int j = 0; j < faceComponentCandidate.size(); j++) {
+                if(faceComponentCandidate.get(j).isValid()){
+                    sumDis += faceComponentCandidate.get(j).calculateSumDistance(FaceReference.controlPoint[i][j]);
+                } else {
+                    sumDis += 100;
+                }
+
+            }
+            if(min == -1 || min < sumDis) {
+                min = sumDis;
+                idx = i;
+            }
+        }
+        Log.d("DISTANCE", "" + sumDis);
+        return FaceReference.name[idx];
+    }
+
     private boolean box2Insidebox1(Box box1, Box box2){
         return (box2.top >= box1.top && box2.bottom <= box1.bottom && box2.left >= box1.left && box2.right <= box1.right);
     }
@@ -1152,6 +1190,7 @@ public class MainActivity extends AppCompatActivity {
                 "Eyes",
                 "Nose",
                 "All Face Component",
+                "Face Recognition",
                 "Cancel"};
 
         AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
@@ -1211,6 +1250,9 @@ public class MainActivity extends AppCompatActivity {
                 } else if (items[which].equals(("Component with Same Row"))) {
                     drawBitmap = showComponentWithSameRow(bufferBitmap);
                     imageViewAfter.setImageBitmap(drawBitmap);
+                } else if (items[which].equals(("Face Recognition"))) {
+                    String str = predictFace();
+                    Log.d("PREDICT", str);
                 }
                 else if (items[which].equals("Cancel")) {
                     dialog.dismiss();

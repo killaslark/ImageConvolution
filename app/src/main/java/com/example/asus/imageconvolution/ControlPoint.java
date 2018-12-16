@@ -20,6 +20,9 @@ public class ControlPoint {
 
     public ControlPoint(){
         points = new Point[8];
+        for(int i = 0; i < points.length;i++){
+            points[i] = new Point(-1,-1);
+        }
     }
 
     public ControlPoint(Point[] p) { points = p; }
@@ -33,6 +36,7 @@ public class ControlPoint {
             Point to = new Point(offsetX+points[j].x, offsetY+points[j].y);
             tempBitmap = drawLine(tempBitmap, from, to,color);
         }
+        Log.d("CONTROLPOINTS", "-----------------------");
         return tempBitmap;
     }
 
@@ -68,5 +72,13 @@ public class ControlPoint {
             if (e2 < dy) { err += dx; y0 += sy; }
         }
         return bitmap;
+    }
+
+    public boolean isValid(){
+        boolean valid = true;
+        for(int i = 0; i < points.length;i++){
+            valid = valid && (points[i].x != -1 && points[i].y != -1);
+        }
+        return valid;
     }
 }
