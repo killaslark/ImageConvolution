@@ -19,7 +19,10 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
+
+import org.w3c.dom.Text;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -29,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.Vector;
 
@@ -44,6 +48,7 @@ public class MainActivity extends AppCompatActivity {
     private ArrayList<double[][]> selectedKernel = new ArrayList<>();
     private List<Box> newBoundingBox = new ArrayList<>();
     private List<ControlPoint> faceComponentCandidate = new ArrayList<>();
+    private TextView recognitionPrediction;
     private ImageView imageViewBefore,imageViewAfter;
     private EditText[][] matrixView = new EditText[3][3];
     private Integer REQUEST_CAMERA = 1, SELECT_FILE = 0;
@@ -217,6 +222,11 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void updateTextView (String input) {
+        TextView text = (TextView) findViewById(R.id.recognition_predict);
+        text.setText(input);
+    }
+
     private void testControlPoint(){
         Point[] p = new Point[8];
         p[0] = new Point(1, 2);
@@ -290,6 +300,26 @@ public class MainActivity extends AppCompatActivity {
             sum += a.get(i).calculateSumDistance(b.get(i));
         }
         return sum;
+    }
+
+    private void RecognizeFace() {
+        int n = 3; //Face Reference Size
+        List<List<ControlPoint>> ref = new ArrayList<>(); //Control Point Reference
+        List<ControlPoint> current = new ArrayList<>(); //Current tested control point
+        float min = 999999;
+        int idx = 0;
+        for(int i = 0; i < n; i++) {
+            if (i == 0) {
+                min = CalculateCPDistance(current, ref.get(i));
+                idx = i;
+            } else {
+                if (CalculateCPDistance(current, ref.get(i)) < min)
+                    min = CalculateCPDistance(current, ref.get(i));
+                    idx = i;
+            }
+        }
+
+        updateTextView(ref.get(idx).toString()); //Get COntrol point name
     }
 
     private Bitmap resizeBitmap(Bitmap bitmap) {
