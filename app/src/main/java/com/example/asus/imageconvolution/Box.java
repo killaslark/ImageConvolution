@@ -144,4 +144,17 @@ public class Box {
         return new Point(x0-offsetX,y0-offsetY);
     }
 
+//    @Override
+//    public boolean equals(Object obj) {
+//        if (!(obj instanceof Box)) {
+//            return false;
+//        }
+//        Box obj2 = (Box)obj;
+//        return (
+//                obj2.left == left &&
+//                obj2.top == top &&
+//                obj2.right == right &&
+//                obj2.bottom == bottom
+//                );
+//    }
 }
